@@ -122,7 +122,7 @@ if bare_metal_version >= Version("11.8"):
 # subprocess.run(["git", "submodule", "update", "--init", "csrc/flash_attn/cutlass"])
 ext_modules.append(
     CUDAExtension(
-        name="lsl_matrix_lib",
+        name="ld_mma",
         sources=[
             "../csrc/mma/ld_mma_api.cpp",
             "../csrc/mma/src/warp_matrix.cpp",
@@ -155,7 +155,7 @@ ext_modules.append(
 )
 
 setup(
-    name="lsl_matrix_lib",
+    name="ld_mma",
     version="0.1",
     description="Cross-entropy loss",
     ext_modules=ext_modules,
