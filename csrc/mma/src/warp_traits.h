@@ -18,6 +18,7 @@ struct Warp_traits {
     static constexpr int Warp_M = Warp_M_;
     static constexpr int Warp_N = Warp_N_;
     static constexpr int Warp_K = Warp_K_;
+    using elem_type = elem_type_;
 
     // static constexpr int ATOM_N = 8;
     // static constexpr int ATOM_K = 16;
@@ -27,5 +28,5 @@ struct Warp_traits {
     // static constexpr int Warp_M = 1;
     // static constexpr int Warp_N = 1;
     // static constexpr int Warp_K = 1;
-    using elem_type = elem_type_;
+    // using elem_type = __half;
 };

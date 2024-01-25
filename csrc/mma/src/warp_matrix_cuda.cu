@@ -27,18 +27,23 @@ using namespace nvcuda;
 
 
 template <typename Warp_traits>
-__global__ void MatrixForwardV8(Warp_traits::elem_type *C, Warp_traits::elem_type *A, Warp_traits::elem_type *B, 
+__global__ void MatrixForwardV8(void *Cptr, void *Aptr, void *Bptr, 
                                 const int M, const int N, const int K)
 {
   int Tile_m = blockIdx.x;
   int Tile_n = blockIdx.y;
   int tidx = threadIdx.x;
 
+
   constexpr static int kTile_M = Warp_traits::kTile_M;
   constexpr static int kTile_N = Warp_traits::kTile_N;
   constexpr static int kTile_K = Warp_traits::kTile_K;
 
   using elem_type = typename Warp_traits::elem_type;
+
+  elem_type* A = (elem_type*)Aptr;
+  elem_type* B = (elem_type*)Bptr;
+  elem_type* C = (elem_type*)Cptr;
 
   int BYTES_PER_ELT = sizeof(elem_type);
   int ELTS_PER_THREADS = 8;
