@@ -1,0 +1,46 @@
+// {
+//     "configurations": [
+//         {
+//             "name": "Linux",
+//             "includePath": [
+//                 "${workspaceFolder}/**",
+//                 "/usr/local/cuda/include/**",
+//                 "/home/sun/miniconda3/envs/apex/include/python3.10/**",
+//                 "/home/sun/miniconda3/envs/apex/lib/python3.10/site-packages/torch/include/**"
+//                 // "/home/sun/miniconda3/envs/apex/lib/python3.10/site-packages/torch/include/torch/csrc/api/include"
+//             ],
+//             "defines": [],
+//             "compilerPath": "/usr/bin/gcc",
+//             "cStandard": "c17",
+//             "cppStandard": "gnu++17",
+//             "intelliSenseMode": "linux-gcc-x64"
+//         }
+//     ],
+//     "version": 4
+// }
+
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "E:/miniconda3/envs/ld_mma/include",
+                "E:/miniconda3/envs/ld_mma/Lib/site-packages/torch/include",
+                "E:/miniconda3/envs/ld_mma/Lib/site-packages/torch/include/torch/csrc/api/include"
+                // "E:/miniconda3/envs/ld_mma/include"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "windowsSdkVersion": "10.0.22000.0",
+            "compilerPath": "cl.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "windows-msvc-x64"
+        }
+    ],
+    "version": 4
+}
