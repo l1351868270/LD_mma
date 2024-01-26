@@ -37,7 +37,7 @@ void warp_matmul_v8(const torch::Tensor C, const torch::Tensor A, torch::Tensor 
     constexpr static int ATOM_N = 8;
     constexpr static int ATOM_K = 16;
     constexpr static int kTile_M = 16;
-    constexpr static int kTile_N = 16;
+    constexpr static int kTile_N = 8;
     constexpr static int kTile_K = 16;
     constexpr static int Warp_M = 1;
     constexpr static int Warp_N = 1;

@@ -122,10 +122,10 @@ if bare_metal_version >= Version("11.8"):
 # subprocess.run(["git", "submodule", "update", "--init", "csrc/flash_attn/cutlass"])
 ext_modules.append(
     CUDAExtension(
-        name="ld_mma",
+        name="ld_mma_cuda",
         sources=[
-            "../csrc/mma/ld_mma_api.cpp",
-            "../csrc/mma/src/warp_matmul.cu",
+            "csrc/mma/ld_mma_api.cpp",
+            "csrc/mma/src/warp_matmul.cu",
         ],
         extra_compile_args={
             "cxx": ["-O3", "-std=c++17"] + generator_flag,
@@ -148,7 +148,7 @@ ext_modules.append(
             ),
         },
         include_dirs=[
-            Path(this_dir) / '..' / 'csrc' / 'cutlass' / 'include',
+            Path(this_dir) / 'csrc' / 'cutlass' / 'include',
         ],
     )
 )
@@ -156,6 +156,9 @@ ext_modules.append(
 setup(
     name="ld_mma",
     version="0.1",
+    packages=find_packages(
+        exclude=("build", "dist", "ld_mma.egg-info")
+    ),
     description="Cross-entropy loss",
     ext_modules=ext_modules,
     cmdclass={"build_ext": BuildExtension} if ext_modules else {},

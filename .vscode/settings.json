@@ -1,6 +1,14 @@
 {
     "files.associations": {
         "random": "cpp",
-        "chrono": "cpp"
+        "chrono": "cpp",
+        "regex": "cpp",
+        "system_error": "cpp",
+        "algorithm": "cpp",
+        "xiosbase": "cpp",
+        "xlocale": "cpp",
+        "xutility": "cpp",
+        "__locale": "cpp",
+        "ios": "cpp"
     }
 }
