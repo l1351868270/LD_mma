@@ -3,17 +3,15 @@
  ******************************************************************************/
 
 #include "warp_traits.h"
+#include "warp_matmul.h"
 #include <torch/extension.h>
 #include <c10/cuda/CUDAGuard.h>
 
 #define CHECK_DEVICE(x) TORCH_CHECK(x.device().type() == torch::kCUDA, #x " must be on CUDA")
 #define CHECK_SHAPE(x, ...) TORCH_CHECK(x.sizes() == torch::IntArrayRef({__VA_ARGS__}), #x " must have shape (" #__VA_ARGS__ ")")
 
-template <typename Warp_traits>
-void matrix_v8_cuda(const torch::Tensor C, const torch::Tensor A, torch::Tensor B, const int M, const int N, const int K);
-
 // x1: RowMajor, x2: RowMajor, out: RowMajor
-void matrix_v8(const torch::Tensor C, const torch::Tensor A, torch::Tensor B) {
+void warp_matmul_v8(const torch::Tensor C, const torch::Tensor A, torch::Tensor B) {
     CHECK_DEVICE(C);
     CHECK_DEVICE(A);
     CHECK_DEVICE(B);
@@ -49,9 +47,9 @@ void matrix_v8(const torch::Tensor C, const torch::Tensor A, torch::Tensor B) {
     TORCH_CHECK(N % kTile_N == 0);
     TORCH_CHECK(K % kTile_K == 0);
 
-    matrix_v8_cuda<Warp_traits<ATOM_M, ATOM_N, ATOM_K, kTile_M, kTile_N, kTile_K, Warp_M, Warp_N, Warp_K, __half>>(C, A, B, M, N, K);
+    warp_matmul_v8_cuda<Warp_traits<ATOM_M, ATOM_N, ATOM_K, kTile_M, kTile_N, kTile_K, Warp_M, Warp_N, Warp_K, __half>>(C, A, B, M, N, K);
     // using tmp = Warp_traits<16>;
-    // matrix_v8_cuda<tmp>(C, A, B, M, N, K);
+    // warp_matmul_v8_cuda<tmp>(C, A, B, M, N, K);
 }
 
 

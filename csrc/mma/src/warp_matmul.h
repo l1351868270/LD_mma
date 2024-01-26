@@ -23,11 +23,9 @@ Memory Bandwidth = 936 GB/sec = 936 * 1024 * 1024 * 1024 Bytes/s = 1,005,022,347
 
 extern "C" __device__ uint32_t __nvvm_get_smem_pointer(void *ptr);
 
-using namespace nvcuda;
-
 
 template <typename Warp_traits>
-__global__ void MatrixForwardV8(void *Cptr, void *Aptr, void *Bptr, 
+__global__ void WarpMatmulForwardV8(void *Cptr, void *Aptr, void *Bptr, 
                                 const int M, const int N, const int K)
 {
   int Tile_m = blockIdx.x;
@@ -292,7 +290,7 @@ __global__ void MatrixForwardV8(void *Cptr, void *Aptr, void *Bptr,
 
 
 template <typename Warp_traits>
-void matrix_v8_cuda(const torch::Tensor C, const torch::Tensor A, torch::Tensor B, const int M, const int N, const int K) {
+void warp_matmul_v8_cuda(const torch::Tensor C, const torch::Tensor A, torch::Tensor B, const int M, const int N, const int K) {
   constexpr static int kTile_M = Warp_traits::kTile_M;
   constexpr static int kTile_N = Warp_traits::kTile_N;
 
@@ -318,10 +316,10 @@ void matrix_v8_cuda(const torch::Tensor C, const torch::Tensor A, torch::Tensor 
             << " sharedMemPerBlockOptin: " << prop.sharedMemPerBlockOptin << std::endl;
   int smem_size = 1024 * 48;
   cudaFuncSetAttribute(
-                MatrixForwardV8<Warp_traits>, cudaFuncAttributeMaxDynamicSharedMemorySize, smem_size);
+                WarpMatmulForwardV8<Warp_traits>, cudaFuncAttributeMaxDynamicSharedMemorySize, smem_size);
   printf("threads is (%d, %d, %d); blocks is (%d, %d, %d)\n", threads.x, threads.y, threads.z, blocks.x, blocks.y, blocks.z);
   
-  MatrixForwardV8<Warp_traits><<<blocks, threads, smem_size>>>(C_data, A_data, B_data, M, N, K);
+  WarpMatmulForwardV8<Warp_traits><<<blocks, threads, smem_size>>>(C_data, A_data, B_data, M, N, K);
   cudaPeekAtLastError();
   time_t t = time(NULL) - now;
   printf("cuda cost is %d\n", t);
