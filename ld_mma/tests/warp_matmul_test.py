@@ -8,7 +8,7 @@ torch.manual_seed(0)
 
 M = 16 * 1
 N = 8 * 1
-K = 16 * 1025
+K = 16 * 1024 # can not large than 16384
 
 device = 'cuda'
 dtype = torch.float16

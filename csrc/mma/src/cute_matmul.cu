@@ -7,17 +7,21 @@
 #include "cute_matmul.h"
 #include "cute_traits.h"
 
+// C: row-major 
+// A: row-major 
+// B: col-major
 void cute_matmul_v1(const torch::Tensor C, const torch::Tensor A, torch::Tensor B) {
     // auto elem_type = half;
-    TORCH_CHECK(B.dtype() == B.dtype());
+
+    TORCH_CHECK(A.dtype() == B.dtype());
 
     // TORCH_CHECK(elem_type == half);
 
     int M = A.sizes()[0];
-    int N = B.sizes()[1];
+    int N = B.sizes()[0];
     int K = A.sizes()[1];
 
-    TORCH_CHECK(B.sizes()[0] == K);
+    TORCH_CHECK(B.sizes()[1] == K);
     TORCH_CHECK(C.sizes()[0] == M);
     TORCH_CHECK(C.sizes()[1] == N);
 
@@ -27,7 +31,7 @@ void cute_matmul_v1(const torch::Tensor C, const torch::Tensor A, torch::Tensor 
     
 
     constexpr static int kTile_M = 16;
-    constexpr static int kTile_N = 8;
+    constexpr static int kTile_N = 16;
     constexpr static int kTile_K = 16;
     constexpr static int Warp_M = 1;
     constexpr static int Warp_N = 1;
@@ -38,5 +42,4 @@ void cute_matmul_v1(const torch::Tensor C, const torch::Tensor A, torch::Tensor 
     TORCH_CHECK(K % kTile_K == 0);
 
     cute_matmul_v1_cuda<Cute_traits<kTile_M, kTile_N, kTile_K, Warp_M, Warp_N, Warp_K>>(C, A, B, M, N, K);
-
 }

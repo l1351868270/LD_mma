@@ -15,6 +15,9 @@ extern "C" __device__ uint32_t __nvvm_get_smem_pointer(void *ptr);
 
 #define DEBUG_WARP_MATMUL_DEVICE 1
 
+// C: row-major 
+// A: row-major 
+// B: col-major
 template <typename Cute_traits>
 __global__ void CuteMatmulForwardV1(void *Cptr, void *Aptr, void *Bptr, 
                                 const int M, const int N, const int K)
@@ -30,16 +33,11 @@ __global__ void CuteMatmulForwardV1(void *Cptr, void *Aptr, void *Bptr,
   using elem_type = typename Cute_traits::Element;
 
   cute::Tensor A = cute::make_tensor(cute::make_gmem_ptr(reinterpret_cast<elem_type*>(Aptr)), cute::make_shape(M, K), cute::make_stride(K, cute::Int<1>{}));
-  cute::Tensor B = cute::make_tensor(cute::make_gmem_ptr(reinterpret_cast<elem_type*>(Bptr)), cute::make_shape(K, N), cute::make_stride(N, cute::Int<1>{}));
+  cute::Tensor B = cute::make_tensor(cute::make_gmem_ptr(reinterpret_cast<elem_type*>(Bptr)), cute::make_shape(N, K), cute::make_stride(K, cute::Int<1>{}));
   cute::Tensor C = cute::make_tensor(cute::make_gmem_ptr(reinterpret_cast<elem_type*>(Cptr)), cute::make_shape(M, N), cute::make_stride(N, cute::Int<1>{}));
 
-  if (tidx == 0) {
-    cute::print_layout(A.layout());
-  }
-  
-
   cute::Tensor gA = cute::local_tile(A, cute::make_tile(cute::Int<kTile_M>{}, cute::Int<kTile_K>{}), cute::make_coord(Tile_m, cute::_));
-  cute::Tensor gB = cute::local_tile(B, cute::make_tile(cute::Int<kTile_K>{}, cute::Int<kTile_N>{}), cute::make_coord(Tile_n, cute::_));
+  cute::Tensor gB = cute::local_tile(B, cute::make_tile(cute::Int<kTile_N>{}, cute::Int<kTile_K>{}), cute::make_coord(Tile_n, cute::_));
   cute::Tensor gC = cute::local_tile(C, cute::make_tile(cute::Int<kTile_M>{}, cute::Int<kTile_N>{}), cute::make_coord(Tile_m, Tile_n));
 
   typename Cute_traits::TiledMma tiled_mma;
@@ -52,9 +50,42 @@ __global__ void CuteMatmulForwardV1(void *Cptr, void *Aptr, void *Bptr,
   auto tBrB = thr_mma.partition_fragment_B(gB(cute::_, cute::_, 0));
   auto tCrC = thr_mma.partition_fragment_C(gC(cute::_, cute::_));
   
+  if (cute::thread0()) { 
+    printf("A B C\n");
+    cute::print(A.layout()); 
+    printf("\n"); 
+    cute::print(B.layout()); 
+    printf("\n");
+    cute::print(C.layout()); 
+    printf("\n");
+
+    printf("tAgA tBgB tCgC\n");
+    cute::print(tAgA.layout()); 
+    printf("\n"); 
+    cute::print(tBgB.layout()); 
+    printf("\n");
+    cute::print(tCgC.layout()); 
+    printf("\n");
+
+    printf("gA gB gC\n");
+    cute::print(gA.layout()); 
+    printf("\n"); 
+    cute::print(gB.layout()); 
+    printf("\n");
+    cute::print(gC.layout()); 
+    printf("\n");
+
+    printf("tArA tBrB tCrC\n");
+    cute::print(tArA.layout()); 
+    printf("\n"); 
+    cute::print(tBrB.layout()); 
+    printf("\n");
+    cute::print(tCrC.layout()); 
+    printf("\n");
+  }
+
   cute::clear(tCrC);
 
-  
   int num_tile_k = cute::size<2>(gA);
   for (int i = 0; i < num_tile_k; i++) {
     cute::copy(tAgA(cute::_, cute::_, cute::_, i), tArA);
@@ -65,6 +96,9 @@ __global__ void CuteMatmulForwardV1(void *Cptr, void *Aptr, void *Bptr,
 
 }
 
+// C: row-major 
+// A: row-major 
+// B: col-major
 template <typename Cute_traits>
 void cute_matmul_v1_cuda(const torch::Tensor C, const torch::Tensor A, torch::Tensor B, const int M, const int N, const int K) {
   constexpr static int kTile_M = Cute_traits::kTile_M;

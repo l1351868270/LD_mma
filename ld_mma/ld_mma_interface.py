@@ -12,5 +12,8 @@ def warp_matmul(C: torch.Tensor, A: torch.Tensor, B: torch.Tensor) -> torch.Tens
     # C = torch.empty((M, N), )
     ld_mma_cuda.cpp_warp_matmul_v8(C, A, B)
 
+# C: row-major 
+# A: row-major 
+# B: col-major
 def cute_matmul(C: torch.Tensor, A: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
     ld_mma_cuda.cpp_cute_matmul_v1(C, A, B)
