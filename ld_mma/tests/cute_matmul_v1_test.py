@@ -1,7 +1,7 @@
 
 import torch
 import ld_mma
-from ld_mma.ld_mma_interface import cute_matmul
+from ld_mma.ld_mma_interface import cute_matmul_v1
 
 torch.set_printoptions (precision=6)
 torch.manual_seed(0)
@@ -18,7 +18,7 @@ B = torch.randn((N, K), device='cuda', dtype=dtype, requires_grad=False)
 # B = B.transpose(0, 1).contiguous()
 C = torch.empty((M, N), device='cuda', dtype=dtype, requires_grad=False)
 
-cute_matmul(C, A, B)
+cute_matmul_v1(C, A, B)
 
 print(f'C: {C}')
 
