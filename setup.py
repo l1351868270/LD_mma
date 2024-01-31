@@ -126,6 +126,7 @@ ext_modules.append(
         sources=[
             "csrc/mma/ld_mma_api.cpp",
             "csrc/mma/src/warp_matmul.cu",
+            "csrc/mma/src/cute_matmul.cu",
         ],
         extra_compile_args={
             "cxx": ["-O3", "-std=c++17"] + generator_flag,

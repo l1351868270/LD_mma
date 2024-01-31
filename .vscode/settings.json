@@ -9,6 +9,12 @@
         "xlocale": "cpp",
         "xutility": "cpp",
         "__locale": "cpp",
-        "ios": "cpp"
+        "ios": "cpp",
+        "functional": "cpp",
+        "ratio": "cpp",
+        "type_traits": "cpp",
+        "xstring": "cpp",
+        "string": "cpp",
+        "string_view": "cpp"
     }
 }
