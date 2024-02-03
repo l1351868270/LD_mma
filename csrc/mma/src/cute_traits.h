@@ -12,7 +12,7 @@ template <int kTile_M_, int kTile_N_, int kTile_K_,
 struct Cute_traits {
     using Element = cutlass::half_t;
     using ElementAccum = float;
-    using MMA_Atom_Arch = cute::MMA_Atom<cute::SM80_16x8x16_F16F16F16F16_TN>;
+    using MMA_Atom_Arch = cute::MMA_Atom<cute::SM80_16x8x16_F32F16F16F32_TN>;
     using SmemCopyAtom = cute::Copy_Atom<cute::SM75_U32x4_LDSM_N, Element>;
     using SmemCopyAtomTransposed = cute::Copy_Atom<cute::SM75_U16x8_LDSM_T, Element>;
     using TiledMma = cute::TiledMMA<
