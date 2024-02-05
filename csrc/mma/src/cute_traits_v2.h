@@ -1,4 +1,3 @@
-
 #pragma once
 
 #include "cute/algorithm/copy.hpp"
@@ -9,10 +8,10 @@
 
 template <int kTile_M_, int kTile_N_, int kTile_K_,
           int Warp_M_, int Warp_N_, int Warp_K_>
-struct Cute_traits {
+struct Cute_traits_v2 {
     using Element = cutlass::half_t;
     using ElementAccum = float;
-    using MMA_Atom_Arch = cute::MMA_Atom<cute::SM80_16x8x16_F32F16F16F32_TN>;
+    using MMA_Atom_Arch = cute::MMA_Atom<cute::SM80_16x8x16_F16F16F16F16_TN>;
     using SmemCopyAtom = cute::Copy_Atom<cute::SM75_U32x4_LDSM_N, Element>;
     using SmemCopyAtomTransposed = cute::Copy_Atom<cute::SM75_U16x8_LDSM_T, Element>;
 
@@ -28,26 +27,37 @@ struct Cute_traits {
         cute::Layout<cute::Shape<cute::Int<1>,cute::_1,cute::_1>>,  // 1x1x1 thread group
         cute::Tile<cute::Int<16>, cute::_16, cute::_16>>;
 
-    using SmemLayoutAtomA = decltype(
-        cute::composition(cute::Swizzle<3, 3, 3>{},
-                    cute::Layout<cute::Shape<cute::_8, cute::Int<kTile_K>>,
-                           cute::Stride<cute::Int<kTile_K>, cute::_1>>{}));
+    // using SmemLayoutAtomA = decltype(
+    //     cute::composition(cute::Swizzle<0, 0, 0>{},
+    //                 cute::Layout<cute::Shape<cute::_8, cute::Int<kTile_K>>,
+    //                        cute::Stride<cute::Int<kTile_K>, cute::_1>>{}));
+    using SmemLayoutAtomA = cute::Layout<cute::Shape <cute::_8, cute::Int<kTile_K>>, 
+                                         cute::Stride<cute::Int<kTile_K>, cute::_1>>;
+
     using SmemLayoutA = decltype(tile_to_shape(
         SmemLayoutAtomA{},
         cute::Shape<cute::Int<kTile_M>, cute::Int<kTile_K>>{}));
 
-    using SmemLayoutAtomB = decltype(
-        cute::composition(cute::Swizzle<3, 3, 3>{},
-                    cute::Layout<cute::Shape<cute::_8, cute::Int<kTile_K>>,
-                           cute::Stride<cute::Int<kTile_K>, cute::_1>>{}));
+    // using SmemLayoutAtomB = decltype(
+    //     cute::composition(cute::Swizzle<0, 0, 0>{},
+    //                 cute::Layout<cute::Shape<cute::_8, cute::Int<kTile_K>>,
+    //                        cute::Stride<cute::Int<kTile_K>, cute::_1>>{}));
+
+    using SmemLayoutAtomB = cute::Layout<cute::Shape <cute::_8, cute::Int<kTile_K>>, 
+                                         cute::Stride<cute::Int<kTile_K>, cute::_1>>;
+
     using SmemLayoutB = decltype(tile_to_shape(
         SmemLayoutAtomB{},
         cute::Shape<cute::Int<kTile_N>, cute::Int<kTile_K>>{}));
 
-    using SmemLayoutAtomC = decltype(
-        cute::composition(cute::Swizzle<3, 3, 3>{},
-                    cute::Layout<cute::Shape<cute::Int<kTile_M>, cute::Int<kTile_N>>,
-                           cute::Stride<cute::Int<kTile_N>, cute::_1>>{}));
+    // using SmemLayoutAtomC = decltype(
+    //     cute::composition(cute::Swizzle<0, 0, 0>{},
+    //                 cute::Layout<cute::Shape<cute::Int<kTile_M>, cute::Int<kTile_N>>,
+    //                        cute::Stride<cute::Int<kTile_N>, cute::_1>>{}));
+
+    using SmemLayoutAtomC = cute::Layout<cute::Shape<cute::Int<kTile_M>, cute::Int<kTile_N>>, 
+                                         cute::Stride<cute::Int<kTile_K>, cute::_1>>;
+
     using SmemLayoutC = decltype(tile_to_shape(
         SmemLayoutAtomC{},
         cute::Shape<cute::Int<kTile_M>, cute::Int<kTile_N>>{}));

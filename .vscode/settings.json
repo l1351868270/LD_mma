@@ -34,6 +34,24 @@
         "__hash_table": "cpp",
         "__tree": "cpp",
         "array": "cpp",
-        "vector": "cpp"
+        "vector": "cpp",
+        "iterator": "cpp",
+        "limits": "cpp",
+        "memory": "cpp",
+        "new": "cpp",
+        "tuple": "cpp",
+        "utility": "cpp",
+        "__functional_base": "cpp",
+        "__node_handle": "cpp",
+        "map": "cpp",
+        "typeinfo": "cpp",
+        "bitset": "cpp",
+        "filesystem": "cpp",
+        "forward_list": "cpp",
+        "iomanip": "cpp",
+        "__config": "cpp",
+        "locale": "cpp",
+        "sstream": "cpp",
+        "thread": "cpp"
     }
 }

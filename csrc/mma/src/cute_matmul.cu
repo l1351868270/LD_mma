@@ -7,6 +7,7 @@
 #include "cute_matmul.h"
 #include "cute_matmul_v2.h"
 #include "cute_traits.h"
+#include "cute_traits_v2.h"
 
 // C: row-major 
 // A: row-major 
@@ -79,5 +80,5 @@ void cute_matmul_v2(const torch::Tensor C, const torch::Tensor A, torch::Tensor 
     TORCH_CHECK(N % kTile_N == 0);
     TORCH_CHECK(K % kTile_K == 0);
 
-    cute_matmul_v2_cuda<Cute_traits<kTile_M, kTile_N, kTile_K, Warp_M, Warp_N, Warp_K>>(C, A, B, M, N, K);
+    cute_matmul_v2_cuda<Cute_traits_v2<kTile_M, kTile_N, kTile_K, Warp_M, Warp_N, Warp_K>>(C, A, B, M, N, K);
 }
