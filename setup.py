@@ -125,6 +125,7 @@ ext_modules.append(
         name="ld_mma_cuda",
         sources=[
             "csrc/mma/ld_mma_api.cpp",
+            "csrc/mma/src/cublas_matmul.cu",
             "csrc/mma/src/warp_matmul.cu",
             "csrc/mma/src/cute_matmul.cu",
         ],
@@ -151,6 +152,11 @@ ext_modules.append(
         include_dirs=[
             Path(this_dir) / 'csrc' / 'cutlass' / 'include',
         ],
+        libraries=['cublas'],
+        library_dirs=[
+            os.path.join(CUDA_HOME, 'lib'),
+            os.path.join(CUDA_HOME, 'lib64'),
+        ]
     )
 )
 
