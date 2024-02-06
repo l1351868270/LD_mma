@@ -7,6 +7,12 @@ def load_csv_and_stat(path):
         lines = fp.readlines()
 
     ret = {} 
+    include_funcs = set([
+        'ampere_h1688gemm_128x128_ldg8_stages_32x1_tn',
+        'WarpMatmulV8',
+        'CuteMatmulV1',
+        'CuteMatmulV2',
+    ])
     for line in lines:
         if line.startswith('=='):
             continue
@@ -18,22 +24,30 @@ def load_csv_and_stat(path):
         # try:
         #   usec = float(fields[-1].replace('"', '').replace(',', '.'))
         usec = float(fields[-1].replace('"', '').replace(',', ''))
-        print(usec)
         # except:
         #   continue
+        is_save = False
+        func_name = ''
+        for func in include_funcs:
+            if func in kernel:
+                is_save = True
+                func_name = func
 
-        if kernel not in ret:
-            ret[kernel] = [] # usec
-        ret[kernel].append(usec)
+        if is_save:
+            if func_name not in ret:
+                ret[func_name] = [] # usec
+            ret[func_name].append(usec)
+            # print(f'kernel: {kernel}, usec: {usec}')
 
+    print('kernel, mean(us), std, med, num')
     for k, s in ret.items():
-        s = np.array(s)
+        s = np.array(s) / 1000.0
         num = len(s)
         mean = np.mean(s)
         std = np.std(s)
         med = np.median(s)
         ret[k] = (mean, std, med, num) 
-    pprint(ret)
-
+        print(f'{k},  {mean:.3f},  {std:.3f},  {med:.3f},  {num}')
+    # pprint(ret)
 
 load_csv_and_stat('a.csv')

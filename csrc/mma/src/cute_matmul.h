@@ -54,7 +54,7 @@ extern "C" __device__ uint32_t __nvvm_get_smem_pointer(void *ptr);
     tCrC: ((_2,_2),_1,_2):((_1,_2),_0,_4) => (([1,_2],[_2,1]),[_1,_2]):(([0,_1],[_2,0]),[_0,_4])
 */
 template <typename Cute_traits>
-__global__ void CuteMatmulForwardV1(void *Cptr, void *Aptr, void *Bptr, 
+__global__ void CuteMatmulV1(void *Cptr, void *Aptr, void *Bptr, 
                                 const int M, const int N, const int K)
 {
   int Tile_m = blockIdx.x;
@@ -69,17 +69,17 @@ __global__ void CuteMatmulForwardV1(void *Cptr, void *Aptr, void *Bptr,
 
   cute::Tensor A = cute::make_tensor(cute::make_gmem_ptr(reinterpret_cast<elem_type*>(Aptr)), cute::make_shape(M, K), cute::make_stride(K, cute::Int<1>{}));
   cute::Tensor B = cute::make_tensor(cute::make_gmem_ptr(reinterpret_cast<elem_type*>(Bptr)), cute::make_shape(N, K), cute::make_stride(K, cute::Int<1>{}));
-  cute::Tensor C = cute::make_tensor(cute::make_gmem_ptr(reinterpret_cast<float*>(Cptr)), cute::make_shape(M, N), cute::make_stride(N, cute::Int<1>{}));
+  cute::Tensor C = cute::make_tensor(cute::make_gmem_ptr(reinterpret_cast<elem_type*>(Cptr)), cute::make_shape(M, N), cute::make_stride(N, cute::Int<1>{}));
 
-  if (cute::thread0()) { 
-    printf("A B C\n");
-    cute::print(A.layout()); 
-    printf("\n"); 
-    cute::print(B.layout()); 
-    printf("\n");
-    cute::print(C.layout()); 
-    printf("\n");
-  }
+  // if (cute::thread0()) { 
+  //   printf("A B C\n");
+  //   cute::print(A.layout()); 
+  //   printf("\n"); 
+  //   cute::print(B.layout()); 
+  //   printf("\n");
+  //   cute::print(C.layout()); 
+  //   printf("\n");
+  // }
 
   // cute::Tensor gA = cute::local_tile(A, cute::make_tile(cute::Int<kTile_M>{}, cute::Int<kTile_K>{}), cute::make_coord(cute::_, cute::_));
   // cute::Tensor gB = cute::local_tile(B, cute::make_tile(cute::Int<kTile_N>{}, cute::Int<kTile_K>{}), cute::make_coord(cute::_, cute::_));
@@ -89,15 +89,15 @@ __global__ void CuteMatmulForwardV1(void *Cptr, void *Aptr, void *Bptr,
   cute::Tensor gB = cute::local_tile(B, cute::make_tile(cute::Int<kTile_N>{}, cute::Int<kTile_K>{}), cute::make_coord(Tile_n, cute::_));
   cute::Tensor gC = cute::local_tile(C, cute::make_tile(cute::Int<kTile_M>{}, cute::Int<kTile_N>{}), cute::make_coord(Tile_m, Tile_n));
 
-  if (cute::thread0()) { 
-    printf("gA gB gC\n");
-    cute::print(gA.layout()); 
-    printf("\n"); 
-    cute::print(gB.layout()); 
-    printf("\n");
-    cute::print(gC.layout()); 
-    printf("\n");
-  }
+  // if (cute::thread0()) { 
+  //   printf("gA gB gC\n");
+  //   cute::print(gA.layout()); 
+  //   printf("\n"); 
+  //   cute::print(gB.layout()); 
+  //   printf("\n");
+  //   cute::print(gC.layout()); 
+  //   printf("\n");
+  // }
 
   typename Cute_traits::TiledMma tiled_mma;
   auto thr_mma = tiled_mma.get_slice(tidx);
@@ -105,29 +105,29 @@ __global__ void CuteMatmulForwardV1(void *Cptr, void *Aptr, void *Bptr,
   auto tBgB = thr_mma.partition_B(gB);
   auto tCgC = thr_mma.partition_C(gC);
 
-  if (cute::thread0()) { 
-    printf("tAgA tBgB tCgC\n");
-    cute::print(tAgA.layout()); 
-    printf("\n"); 
-    cute::print(tBgB.layout()); 
-    printf("\n");
-    cute::print(tCgC.layout()); 
-    printf("\n");
-  }
+  // if (cute::thread0()) { 
+  //   printf("tAgA tBgB tCgC\n");
+  //   cute::print(tAgA.layout()); 
+  //   printf("\n"); 
+  //   cute::print(tBgB.layout()); 
+  //   printf("\n");
+  //   cute::print(tCgC.layout()); 
+  //   printf("\n");
+  // }
 
   auto tArA = thr_mma.partition_fragment_A(gA(cute::_, cute::_, 0));
   auto tBrB = thr_mma.partition_fragment_B(gB(cute::_, cute::_, 0));
   auto tCrC = thr_mma.partition_fragment_C(gC(cute::_, cute::_));
 
-  if (cute::thread0()) { 
-    printf("tArA tBrB tCrC\n");
-    cute::print(tArA.layout()); 
-    printf("\n"); 
-    cute::print(tBrB.layout()); 
-    printf("\n");
-    cute::print(tCrC.layout()); 
-    printf("\n");
-  }
+  // if (cute::thread0()) { 
+  //   printf("tArA tBrB tCrC\n");
+  //   cute::print(tArA.layout()); 
+  //   printf("\n"); 
+  //   cute::print(tBrB.layout()); 
+  //   printf("\n");
+  //   cute::print(tCrC.layout()); 
+  //   printf("\n");
+  // }
 
   cute::clear(tCrC);
 
@@ -171,10 +171,10 @@ void cute_matmul_v1_cuda(const torch::Tensor C, const torch::Tensor A, torch::Te
             << " sharedMemPerBlockOptin: " << prop.sharedMemPerBlockOptin << std::endl;
   int smem_size = ((M * N + M * K + N * K) * sizeof(elem_type) + 1024 - 1) / 1024;
   cudaFuncSetAttribute(
-                CuteMatmulForwardV1<Cute_traits>, cudaFuncAttributeMaxDynamicSharedMemorySize, smem_size);
+                CuteMatmulV1<Cute_traits>, cudaFuncAttributeMaxDynamicSharedMemorySize, smem_size);
   printf("threads is (%d, %d, %d); blocks is (%d, %d, %d)\n", threads.x, threads.y, threads.z, blocks.x, blocks.y, blocks.z);
   
-  CuteMatmulForwardV1<Cute_traits><<<blocks, threads, smem_size>>>(C_data, A_data, B_data, M, N, K);
+  CuteMatmulV1<Cute_traits><<<blocks, threads, smem_size>>>(C_data, A_data, B_data, M, N, K);
   cudaPeekAtLastError();
   time_t t = time(NULL) - now;
   printf("cuda cost is %d\n", t);

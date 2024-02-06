@@ -16,7 +16,7 @@ dtype = torch.float16
 A = torch.randn((M, K), device='cuda', dtype=dtype, requires_grad=False)
 B = torch.randn((N, K), device='cuda', dtype=dtype, requires_grad=False)
 # B = B.transpose(0, 1).contiguous()
-C = torch.empty((M, N), device='cuda', dtype=torch.float32, requires_grad=False)
+C = torch.empty((M, N), device='cuda', dtype=dtype, requires_grad=False)
 
 cute_matmul_v1(C, A, B)
 

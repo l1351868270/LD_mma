@@ -27,7 +27,7 @@ extern "C" __device__ uint32_t __nvvm_get_smem_pointer(void *ptr);
 #define DEBUG_WARP_MATMUL_DEVICE 1
 
 template <typename Warp_traits>
-__global__ void WarpMatmulForwardV8(void *Cptr, void *Aptr, void *Bptr, 
+__global__ void WarpMatmulV8(void *Cptr, void *Aptr, void *Bptr, 
                                 const int M, const int N, const int K)
 {
   int Tile_m = blockIdx.x;
@@ -106,11 +106,11 @@ __global__ void WarpMatmulForwardV8(void *Cptr, void *Aptr, void *Bptr,
   int groupID = tidx / 4;
   int threadID_in_group = tidx % 4;
 
-  #ifdef DEBUG_WARP_MATMUL_DEVICE
-      if (tidx == 0) {
-          printf("WarpMatmulForwardV8: BYTES_PER_ELT K_tiles is: %d\n", K_tiles);
-      }
-  #endif
+  // #ifdef DEBUG_WARP_MATMUL_DEVICE
+  //     if (tidx == 0) {
+  //         printf("WarpMatmulV8: BYTES_PER_ELT K_tiles is: %d\n", K_tiles);
+  //     }
+  // #endif
 
   uint2 s_c = make_uint2(0, 0);
   for (int Tile_k = 0; Tile_k < K_tiles; Tile_k++) {
@@ -212,7 +212,7 @@ __global__ void WarpMatmulForwardV8(void *Cptr, void *Aptr, void *Bptr,
   uint4 t_a = *(reinterpret_cast<uint4*>(C + goffset_c));
   if (thread_coordinate_c[0] < threads_layout_c[0]) {
     #ifdef DEBUG_WARP_MATMUL_DEVICE
-          // printf("WarpMatmulForwardV8: thread_coordinate_c: [%d, %d], goffset_c size is: %d, ld_offset_c is %d\n", 
+          // printf("WarpMatmulV8: thread_coordinate_c: [%d, %d], goffset_c size is: %d, ld_offset_c is %d\n", 
           //         thread_coordinate_c[0], thread_coordinate_c[1], goffset_c, ld_offset_c);
           // __half sc_0 = *reinterpret_cast<__half*>(smem_acc + 4 * groupID *4 + 4* threadID_in_group);
           // __half sc_1 = *reinterpret_cast<__half*>(smem_acc + 4 * groupID *4 + 4* threadID_in_group + 2);
@@ -252,10 +252,10 @@ void warp_matmul_v8_cuda(const torch::Tensor C, const torch::Tensor A, torch::Te
             << " sharedMemPerBlockOptin: " << prop.sharedMemPerBlockOptin << std::endl;
   int smem_size = ((M * N + M * K + N * K) * sizeof(elem_type) + 1024 - 1) / 1024;
   cudaFuncSetAttribute(
-                WarpMatmulForwardV8<Warp_traits>, cudaFuncAttributeMaxDynamicSharedMemorySize, smem_size);
+                WarpMatmulV8<Warp_traits>, cudaFuncAttributeMaxDynamicSharedMemorySize, smem_size);
   printf("threads is (%d, %d, %d); blocks is (%d, %d, %d)\n", threads.x, threads.y, threads.z, blocks.x, blocks.y, blocks.z);
   
-  WarpMatmulForwardV8<Warp_traits><<<blocks, threads, smem_size>>>(C_data, A_data, B_data, M, N, K);
+  WarpMatmulV8<Warp_traits><<<blocks, threads, smem_size>>>(C_data, A_data, B_data, M, N, K);
   cudaPeekAtLastError();
   time_t t = time(NULL) - now;
   printf("cuda cost is %d\n", t);

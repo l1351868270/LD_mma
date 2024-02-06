@@ -33,10 +33,13 @@ gprof
 
 ## GPU Profiler
 ### NVIDIA Nsight
-nsys profile python .\ld_mma\tests\cublass_matmul_test.py
+nsys profile python ./ld_mma/tests/cublas_matmul_test.py
 ### NVIDIA Nsight Compute
-ncu -f --set full -o lsl1 python .\ld_mma\tests\cublass_matmul_test.py
-ncu --csv --log-file a.csv --cache-control=all --clock-control=base --metrics gpu__time_duration.sum python .\ld_mma\tests\cublass_matmul_test.py
+ncu -f --set full -o lsl1 python ./ld_mma/tests/cublas_matmul_test.py
+
+ncu --csv --log-file a.csv --cache-control=all --clock-control=base --metrics gpu__time_duration.sum python ./ld_mma/benchmarks/matmul_benchmark.py
+
+python ./ld_mma/benchmarks/stat-csv.py
 # Matrials
 ## Video
 [GPU编程](https://www.bilibili.com/video/BV1424y1i7xe)
