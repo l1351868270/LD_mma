@@ -163,3 +163,4 @@ cython_debug/
 *.sqlite
 *.nsys-rep
 *.csv
+*.ppt
