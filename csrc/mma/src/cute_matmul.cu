@@ -4,9 +4,9 @@
 
 #include "cute/arch/mma_sm80.hpp"
 
-#include "cute_matmul.h"
+#include "cute_matmul_v1.h"
+#include "cute_traits_v1.h"
 #include "cute_matmul_v2.h"
-#include "cute_traits.h"
 #include "cute_traits_v2.h"
 
 // C: row-major 

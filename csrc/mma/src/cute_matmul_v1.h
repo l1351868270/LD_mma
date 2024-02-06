@@ -4,7 +4,7 @@
 #include <ATen/native/TensorIterator.h>
 #include <ATen/native/cuda/Loops.cuh>
 
-#include "cute_traits.h"
+#include "cute_traits_v1.h"
 #include "cute/algorithm/copy.hpp"
 
 #include "cutlass/cutlass.h"
