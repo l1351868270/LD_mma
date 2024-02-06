@@ -1,3 +1,7 @@
+# python ./ld_mma/tests/cute_matmul_v2_test.py
+# nsys profile python ./ld_mma/tests/cute_matmul_v2_test.py
+# ncu -f --set full -o cute_matmul_v2 python ./ld_mma/tests/cute_matmul_v2_test.py
+
 import torch
 import ld_mma
 from ld_mma.ld_mma_interface import cute_matmul_v2
@@ -5,9 +9,9 @@ from ld_mma.ld_mma_interface import cute_matmul_v2
 torch.set_printoptions (precision=6)
 torch.manual_seed(0)
 
-M = 16 * 4
-N = 16 * 3
-K = 16 * 1024# can not large than 16384
+M = 16 * 128
+N = 16 * 128
+K = 16 * 128# can not large than 16384
 
 device = 'cuda'
 dtype = torch.float16
@@ -24,6 +28,6 @@ C = torch.empty((M, N), device='cuda', dtype=dtype, requires_grad=False)
 cute_matmul_v2(C, A, B)
 print(f'C: {C}')
 
-BT = B.transpose(0, 1).contiguous()
-D = torch.matmul(A, BT)
-print(f'D: {D}')
+# BT = B.transpose(0, 1).contiguous()
+# D = torch.matmul(A, BT)
+# print(f'D: {D}')
