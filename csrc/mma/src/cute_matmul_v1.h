@@ -11,8 +11,6 @@
 #include "cutlass/layout/layout.h"
 #include <cutlass/numeric_types.h>
 
-extern "C" __device__ uint32_t __nvvm_get_smem_pointer(void *ptr);
-
 #define DEBUG_WARP_MATMUL_DEVICE 1
 
 
