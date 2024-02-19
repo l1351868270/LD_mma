@@ -12,6 +12,7 @@ def load_csv_and_stat(path):
         'WarpMatmulV8',
         'CuteMatmulV1',
         'CuteMatmulV2',
+        'CuteMatmulV3',
     ])
     for line in lines:
         if line.startswith('=='):
