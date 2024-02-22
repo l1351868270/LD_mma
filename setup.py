@@ -125,6 +125,7 @@ ext_modules.append(
         name="ld_mma_cuda",
         sources=[
             "csrc/mma/ld_mma_api.cpp",
+            "csrc/mma/src/bank_conflicts.cu",
             "csrc/mma/src/cublas_matmul.cu",
             "csrc/mma/src/warp_matmul.cu",
             "csrc/mma/src/cute_matmul.cu",

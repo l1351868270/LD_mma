@@ -2,6 +2,8 @@
 import torch
 import ld_mma_cuda
 
+def bank_conflicts(offset: int):
+    ld_mma_cuda.cpp_bank_conflicts(offset)
 
 def cublas_matmul(C: torch.Tensor, A: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
     # M = A.shape[0]
