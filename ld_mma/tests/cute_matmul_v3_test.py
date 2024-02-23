@@ -10,8 +10,8 @@ torch.set_printoptions (precision=6)
 torch.manual_seed(0)
 
 M = 16 * 4 * 2
-N = 16 * 3
-K = 16 * 4 * 4  # can not large than 16384
+N = 16 * 4 * 3
+K = 16 * 4 * 4 # can not large than 16384
 
 
 device = 'cuda'
@@ -30,7 +30,12 @@ C = torch.empty((M, N), device='cuda', dtype=dtype, requires_grad=False)
 cute_matmul_v3(C, A, B)
 
 print(f'C: {C}')
+# for i in range(M):
+#     print(C[i])
 
 BT = B.transpose(0, 1).contiguous()
 D = torch.matmul(A, BT)
 print(f'D: {D}')
+# print('C:')
+# for i in range(M):
+#     print(D[i])

@@ -82,13 +82,16 @@ __global__ void CuteMatmulV3(void *Cptr, void *Aptr, void *Bptr,
   using SmemLayoutA = typename Cute_traits::SmemLayoutA;
   using SmemLayoutB = typename Cute_traits::SmemLayoutB;
   using SmemLayoutC = typename Cute_traits::SmemLayoutC;
-  using GmemTiledCopyAB = typename Cute_traits::GmemTiledCopyAB;
   using SmemCopyAtom = typename Cute_traits::SmemCopyAtom;
+  using GmemTiledCopyAB = typename Cute_traits::GmemTiledCopyAB;
+  using SmemCopyAtomC = typename Cute_traits::SmemCopyAtomC;
+  using GmemTiledCopyC = typename Cute_traits::GmemTiledCopyC;
   using TiledMma = typename Cute_traits::TiledMma;
 
   extern __shared__ elem_type smem_[];
   elem_type *smem_a = smem_;
   elem_type *smem_b = smem_ + cute::cosize(SmemLayoutA{});
+
   elem_type *smem_c = smem_ + cute::cosize(SmemLayoutA{}) + cute::cosize(SmemLayoutB{});
 
 //   if (cute::thread(debug_thread)) {
@@ -215,7 +218,7 @@ __global__ void CuteMatmulV3(void *Cptr, void *Aptr, void *Bptr,
   cute::Tensor tSrB  = thr_mma.partition_fragment_B(sB); 
   cute::Tensor tSrC = cute::partition_fragment_C(tiled_mma, cute::Shape<cute::Int<kTile_M>, cute::Int<kTile_N>>{}); 
 
-//   if (cute::thread(debug_thread)) { 
+  // if (cute::thread(debug_thread)) { 
 //     printf("tSrA tSrB tSrC\n");
 //     cute::print(tSrA.layout()); 
 //     printf("\n"); 
@@ -250,7 +253,6 @@ __global__ void CuteMatmulV3(void *Cptr, void *Aptr, void *Bptr,
   clear(tSrC);
   for (int i = 0; i < num_tile_k; i++) {
     // global memory -> shared memory
-
     // for (int m = 0; m < cute::size<1>(tAsA); ++m) {
     //     cute::copy(gmem_tiled_copy_AB, tAgA(cute::_, m, cute::_, i), tAsA(cute::_, m, cute::_));
     // }
@@ -264,40 +266,96 @@ __global__ void CuteMatmulV3(void *Cptr, void *Aptr, void *Bptr,
     cute::Tensor tSrA_copy_view = smem_thr_copy_A.retile_D(tSrA);
     cute::Tensor tSrB_copy_view = smem_thr_copy_B.retile_D(tSrB);
 
+    cute::copy(smem_tiled_copy_A, tSsA(cute::_, cute::_, 0), tSrA_copy_view(cute::_, cute::_, 0));
+    cute::copy(smem_tiled_copy_B, tSsB(cute::_, cute::_, 0), tSrB_copy_view(cute::_, cute::_, 0));
+
     for (int j = 0; j < cute::size<2>(tSrA); ++j) {
-        cute::copy(smem_tiled_copy_A, tSsA(cute::_, cute::_, j), tSrA_copy_view(cute::_, cute::_, j));
-        cute::copy(smem_tiled_copy_B, tSsB(cute::_, cute::_, j), tSrB_copy_view(cute::_, cute::_, j));
+        if ( j < cute::size<2>(tSrA) - 1) {
+          cute::copy(smem_tiled_copy_A, tSsA(cute::_, cute::_, j+1), tSrA_copy_view(cute::_, cute::_, j+1));
+          cute::copy(smem_tiled_copy_B, tSsB(cute::_, cute::_, j+1), tSrB_copy_view(cute::_, cute::_, j+1));
+        }
+
         cute::gemm(tiled_mma, tSrA(cute::_, cute::_, j), tSrB(cute::_, cute::_, j), tSrC);
     }
   }
 
   __syncthreads();
+  
+  // refer to https://github.com/Dao-AILab/flash-attention/blob/main/csrc/flash_attn/src/flash_fwd_kernel.h#L406
+  // registers -> shared memory
+  auto smem_tiled_copy_C = make_tiled_copy_C(SmemCopyAtomC{}, tiled_mma);
+  auto smem_thr_copy_C = smem_tiled_copy_C.get_thread_slice(tidx);
+  cute::Tensor taccOrC = smem_thr_copy_C.retile_S(tSrC);
+  cute::Tensor taccOsC = smem_thr_copy_C.partition_D(sC);
+  cute::copy(smem_tiled_copy_C, taccOrC, taccOsC);
+  __syncthreads();
 
-//   if (cute::thread(debug_thread)) { 
-//     printf("sA sB\n");
-//     cute::print_tensor(sA); 
+//   if (cute::thread(debug_thread, 1)) { 
+//     printf("taccOrCsC\n");
+//     cute::print(cute::layout(tSrC)); 
+//     printf("\n");
+//     cute::print(cute::layout(sC)); 
+//     printf("\n");
+//     cute::print(cute::layout(taccOrC)); 
+//     printf("\n");
+//     cute::print(cute::layout(taccOsC)); 
+//     printf("\n");
+//     cute::print_tensor(sC); 
 //     printf("\n");
 //   }
 
-  // registers -> global memory
-  auto tCgC = thr_mma.partition_C(gC);
-
+  // shared memory -> global memory
+  GmemTiledCopyC gmem_tiled_copy_C;
+  auto gmem_thr_copy_C = gmem_tiled_copy_C.get_thread_slice(tidx);
+  cute::Tensor tCsC = gmem_thr_copy_C.partition_S(sC);
+  cute::Tensor tCgC = gmem_thr_copy_C.partition_D(gC);
+  
 //   if (cute::thread(debug_thread)) { 
-//     printf("tCgC\n");
-//     cute::print(tCgC.layout()); 
+//     printf("tCsC tCgC\n");
+//     cute::print(cute::layout(tCsC)); 
+//     printf("\n");
+//     cute::print(cute::layout(tCgC)); 
+//     printf("\n");
+//     cute::print_tensor(tCsC); 
+//     printf("\n");
+//     cute::print_tensor(tCgC); 
 //     printf("\n");
 //   }
 
-  cute::Tensor tSrC_copy_view = smem_thr_copy_A.retile_D(tSrC);
+  __syncthreads();
 
-//   if (cute::thread(debug_thread)) { 
-//       printf("tSrC_copy_view\n");
-//       cute::print(tSrC_copy_view.layout()); 
-//       printf("\n");
+  cute::copy(gmem_tiled_copy_C, tCsC, tCgC);
+//   int tidRow = tidx / 8;
+//   int tidCol = tidx % 8;
+//   for (int i = 0; i < 4; i++) {
+//     *(reinterpret_cast<uint4*>(reinterpret_cast<elem_type*>(Cptr) + Tile_m * kTile_M * N + Tile_n * kTile_N + i * 16 * N + + tidRow * N + tidCol * 8)) = *(reinterpret_cast<uint4*>(smem_ + i * 16 * kTile_N  + tidRow * kTile_N + tidCol * 8));
 //   }
-
-  cute::copy(tSrC, tCgC); 
+//   printf("tidx=%d, tCsC ptr=%p; tCgC=%p\n", tidx, tCsC.data(), tCgC.data());
 //   __syncthreads();
+
+    // int kTiledM = 64;
+    // int kTiledN = 64;
+
+    // extern __shared__ half sharedMem[];
+
+    // int bidx = blockIdx.x;
+    // int bidy = blockIdx.y;
+    // int tidx = threadIdx.x;
+    
+    // int tidRow = tidx / 8;
+    // int tidCol = tidx % 8;
+
+    // // for (int i = 0; i < 4; i++)
+    // // {
+    // //     *(reinterpret_cast<uint4*>(smem_c + i * 16 * kTile_N  + tidRow * kTile_N + tidCol * 8)) = make_uint4(0, 0, 0, 0);
+    // // }
+
+    // // // *(reinterpret_cast<uint4*>(C + goffset_c)) = *(reinterpret_cast<uint4*>(smem_acc + ld_offset_c));
+    // // index = tidx * offset;
+    // for (int i = 0; i < 4; i++)
+    // {
+    //     *(reinterpret_cast<uint4*>(reinterpret_cast<half*>(Cptr) + Tile_m * kTile_M * N + Tile_n * kTile_N + i * 16 * N + + tidRow * N + tidCol * 8)) = *(reinterpret_cast<uint4*>(smem_c + i * 16 * kTile_N  + tidRow * kTile_N + tidCol * 8));
+    // }
 }
 
 // C: row-major 

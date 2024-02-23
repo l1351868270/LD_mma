@@ -109,7 +109,7 @@ void cute_matmul_v3(const torch::Tensor C, const torch::Tensor A, torch::Tensor 
     
 
     constexpr static int kTile_M = 16 * 4;
-    constexpr static int kTile_N = 16;
+    constexpr static int kTile_N = 16 * 4;
     constexpr static int kTile_K = 16 * 4;
     constexpr static int Warp_M = 1 * 4;
     constexpr static int Warp_N = 1;
