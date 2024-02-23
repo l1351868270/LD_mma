@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <device_launch_parameters.h>
 #include <cuda_fp16.h>
+#include <stdint.h>
 
 __global__
 void bank_conflicts_cuda_v1(uint32_t* Cptr, int offset) {
