@@ -144,7 +144,9 @@ ext_modules.append(
                     "--expt-extended-lambda",
                     "--use_fast_math",
                     "--ptxas-options=-v",
-                    "-lineinfo"
+                    "-lineinfo",
+                    "-Xptxas",
+                    "-dlcm=cg"
                 ]
                 + generator_flag
                 + cc_flag

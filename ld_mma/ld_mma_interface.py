@@ -2,8 +2,23 @@
 import torch
 import ld_mma_cuda
 
-def bank_conflicts(offset: int):
-    ld_mma_cuda.cpp_bank_conflicts(offset)
+def bank_conflicts_v1(offset: int):
+    ld_mma_cuda.cpp_bank_conflicts_v1(offset)
+
+def bank_conflicts_v2(offset: int):
+    ld_mma_cuda.cpp_bank_conflicts_v2(offset)
+
+def bank_conflicts_v3(offset: int):
+    ld_mma_cuda.cpp_bank_conflicts_v3(offset)
+
+def bank_conflicts_v4(offset: int):
+    ld_mma_cuda.cpp_bank_conflicts_v4(offset)
+
+def bank_conflicts_v5(offset: int):
+    ld_mma_cuda.cpp_bank_conflicts_v5(offset)
+
+def bank_conflicts_v6(offset: int):
+    ld_mma_cuda.cpp_bank_conflicts_v6(offset)
 
 def cublas_matmul(C: torch.Tensor, A: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
     # M = A.shape[0]

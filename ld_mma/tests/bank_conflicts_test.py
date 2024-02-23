@@ -5,7 +5,13 @@
 
 import torch
 import ld_mma
-from ld_mma.ld_mma_interface import bank_conflicts
+from ld_mma.ld_mma_interface import bank_conflicts_v1, bank_conflicts_v2, bank_conflicts_v3, bank_conflicts_v4
+from ld_mma.ld_mma_interface import bank_conflicts_v5, bank_conflicts_v6
 
-bank_conflicts(1)
+# bank_conflicts_v1(1)
+# bank_conflicts_v2(1)
+# bank_conflicts_v3(1)
+# bank_conflicts_v4(1)
+# bank_conflicts_v5(1)
+bank_conflicts_v6(1)
 print("end")
