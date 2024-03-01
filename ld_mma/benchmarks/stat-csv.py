@@ -9,10 +9,13 @@ def load_csv_and_stat(path):
     ret = {} 
     include_funcs = set([
         'ampere_h1688gemm_128x128_ldg8_stages_32x1_tn',
+        'ampere_h16816gemm_128x64_ldg8_stages_32x6_tn',
+        "ampere_h1688gemm_256x64_ldg8_stages_32x1_tn",
         'WarpMatmulV8',
         'CuteMatmulV1',
         'CuteMatmulV2',
         'CuteMatmulV3',
+        'CuteMatmulV4',
     ])
     for line in lines:
         if line.startswith('=='):
