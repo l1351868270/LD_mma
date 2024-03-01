@@ -2,6 +2,9 @@
 import torch
 import ld_mma_cuda
 
+def bank_conflicts_deviceprop():
+    ld_mma_cuda.cpp_bank_conflicts_deviceprop()
+
 def bank_conflicts_v1(offset: int):
     ld_mma_cuda.cpp_bank_conflicts_v1(offset)
 
@@ -19,6 +22,18 @@ def bank_conflicts_v5(offset: int):
 
 def bank_conflicts_v6(offset: int):
     ld_mma_cuda.cpp_bank_conflicts_v6(offset)
+
+def bank_conflicts_v7(offset: int):
+    ld_mma_cuda.cpp_bank_conflicts_v7(offset)
+
+def bank_conflicts_v8(offset: int):
+    ld_mma_cuda.cpp_bank_conflicts_v8(offset)
+
+def bank_conflicts_v9(offset: int):
+    ld_mma_cuda.cpp_bank_conflicts_v9(offset)
+
+def bank_conflicts_v10(offset: int):
+    ld_mma_cuda.cpp_bank_conflicts_v10(offset)
 
 def cublas_matmul(C: torch.Tensor, A: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
     # M = A.shape[0]
@@ -51,3 +66,6 @@ def cute_matmul_v2(C: torch.Tensor, A: torch.Tensor, B: torch.Tensor) -> torch.T
 
 def cute_matmul_v3(C: torch.Tensor, A: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
     ld_mma_cuda.cpp_cute_matmul_v3(C, A, B)
+
+def cute_matmul_v4(C: torch.Tensor, A: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
+    ld_mma_cuda.cpp_cute_matmul_v4(C, A, B)
