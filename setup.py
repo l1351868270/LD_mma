@@ -129,6 +129,7 @@ ext_modules.append(
             "csrc/mma/src/cublas_matmul.cu",
             "csrc/mma/src/warp_matmul.cu",
             "csrc/mma/src/cute_matmul.cu",
+            "csrc/mma/src/cute_softmax.cu",
         ],
         extra_compile_args={
             "cxx": ["-O3", "-std=c++17"] + generator_flag,

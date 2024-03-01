@@ -69,3 +69,6 @@ def cute_matmul_v3(C: torch.Tensor, A: torch.Tensor, B: torch.Tensor) -> torch.T
 
 def cute_matmul_v4(C: torch.Tensor, A: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
     ld_mma_cuda.cpp_cute_matmul_v4(C, A, B)
+
+def cute_softmax_v1(C: torch.Tensor) -> torch.Tensor:
+    ld_mma_cuda.cpp_cute_softmax_v1(C)
