@@ -9,9 +9,9 @@ from ld_mma.ld_mma_interface import cute_matmul_v3
 torch.set_printoptions (precision=6)
 torch.manual_seed(0)
 
-M = 16 * 4 * 2
-N = 16 * 4 * 3
-K = 16 * 4 * 4 # can not large than 16384
+M = 16 * 4 * 3
+N = 16 * 4 * 5
+K = 16 * 4 * 7 # can not large than 16384
 
 
 device = 'cuda'
