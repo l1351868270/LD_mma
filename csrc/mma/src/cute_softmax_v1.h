@@ -154,10 +154,10 @@ __global__ void CuteSoftmaxV1(void *Cptr, const int M, const int N)
 
   // shared memory -> registers
 
-  auto r2s_tiled_copy_C = make_tiled_copy_C(S2RCopyAtomC{}, tiled_mma);
-  auto r2s_thr_copy_C = r2s_tiled_copy_C.get_thread_slice(tidx);
-  cute::Tensor r2srC = r2s_thr_copy_C.retile_S(rC);
-  cute::Tensor r2ssC = r2s_thr_copy_C.partition_D(sC);
+  // auto r2s_tiled_copy_C = make_tiled_copy_C(S2RCopyAtom{}, tiled_mma);
+  // auto r2s_thr_copy_C = r2s_tiled_copy_C.get_thread_slice(tidx);
+  // cute::Tensor r2srC = r2s_thr_copy_C.retile_S(rC);
+  // cute::Tensor r2ssC = r2s_thr_copy_C.partition_D(sC);
 
   // if (cute::thread(debug_thread)) { 
   //   printf("r2srC\n");
