@@ -293,7 +293,7 @@ class RMSNorm(torch.nn.Module):
 ### attention
 attention：有四个参数self.wq, self.wk, self.wv, self.wo，每个权重的参数相同
 
-存在bias时 $4*dim^2 + 4*dim$ 
+存在bias时  $4*dim^2+4*dim$  
 
 不存在bias时 $4*dim^2$ 
 
