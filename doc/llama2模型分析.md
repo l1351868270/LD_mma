@@ -20,8 +20,8 @@ attention：有四个参数self.wq, self.wk, self.wv, self.wo，每个权重的�
 ### ffn_norm
 只有一个参数self.weight，参数量为 $dim$
 ### ffn
-有三个参数self.w1, self.w2, self.w3，参数  $ hiddenDim=4*dim*2/3 = 8*dim/3 $  
-
+有三个参数self.w1, self.w2, self.w3，参数  $ hiddenDim=4*dim*2/3$ 
+ $8*dim/3$
 存在bias时 
 
 $$dim * hiddenDim + dim + hiddenDim * dim + hiddenDim + dim * hiddenDim + dim = 3*hiddenDim*dim + 2*dim + hiddenDim = 8*dim/3 * dim *3+ 2*dim + 8*dim/3 = 8*dim^2 + 2*dim + 8*dim/3$$
