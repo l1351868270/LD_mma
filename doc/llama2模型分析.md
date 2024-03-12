@@ -26,18 +26,18 @@ attention：有四个参数self.wq, self.wk, self.wv, self.wo，每个权重的�
 
 $`dim * hiddenDim + dim + hiddenDim * dim + hiddenDim + dim * hiddenDim + dim = 3*hiddenDim*dim + 2*dim + hiddenDim = 8*dim/3 * dim *3+ 2*dim + 8*dim/3 = 8*dim^2 + 2*dim + 8*dim/3`$
 
-不存在bias时 $ 8*dim/3 * dim * 3 = 8*dim^2$
+不存在bias时 $` 8*dim/3 * dim * 3 = 8*dim^2`$
 
 ### ffn total
-存在bias时 $8*dim/3 * dim * 3 + 3*dim + 8*dim/3 = 8*dim^2 + 3*dim + 8*dim/3$
+存在bias时 $`8*dim/3 * dim * 3 + 3*dim + 8*dim/3 = 8*dim^2 + 3*dim + 8*dim/3`$
 
-不存在bias时 $ 8*dim/3 * dim * 3 + dim = 8*dim^2 + dim $
+不存在bias时 $` 8*dim/3 * dim * 3 + dim = 8*dim^2 + dim `$
 
 ## transformer/per
 存在bias时 
-$4*dim^2+5*dim + 8*dim/3 * dim * 3 + 3*dim + 8*dim/3 = 4*dim^2+8*dim/3*dim*3+8*dim + 8*dim/3 = 12*dim^2 +8*dim + 8*dim/3$
+$`4*dim^2+5*dim + 8*dim/3 * dim * 3 + 3*dim + 8*dim/3 = 4*dim^2+8*dim/3*dim*3+8*dim + 8*dim/3 = 12*dim^2 +8*dim + 8*dim/3`$
 
-不存在bias时 $ 4*dim^2+dim + 8*dim/3 * dim * 3 + dim = 12*dim^2+2*dim $
+不存在bias时 $` 4*dim^2+dim + 8*dim/3 * dim * 3 + dim = 12*dim^2+2*dim `$
 
 
 
