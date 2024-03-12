@@ -68,9 +68,14 @@ $`= 12*dim^2 +8*dim + 8*dim/3`$
 
 $` 4*dim^2+dim + 8*dim/3 * dim * 3 + dim = 12*dim^2+2*dim `$
 
+## llama-2-7b
+```
+{"dim": 4096, "multiple_of": 256, "n_heads": 32, "n_layers": 32, "norm_eps": 1e-05, "vocab_size": -1}
+```
 
+### self.tok_embeddings
 
-
+$`vocab\_size*dim`$
 
 
 
