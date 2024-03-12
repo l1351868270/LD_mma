@@ -68,11 +68,7 @@ $`= 12*dim^2 +8*dim + 8*dim/3`$
 
 $` 4*dim^2+dim + 8*dim/3 * dim * 3 + dim = 12*dim^2+2*dim `$
 
-## llama-2-7b
-```
-{"dim": 4096, "multiple_of": 256, "n_heads": 32, "n_layers": 32, "norm_eps": 1e-05, "vocab_size": -1}
-```
-
+## llama-2
 ### self.tok_embeddings
 
 $`vocab\_size*dim`$
@@ -108,3 +104,15 @@ $`vocab\_size*dim + (12*dim^2 +8*dim + 8*dim/3) * layers + dim+(dim*vocab\_size 
 不存在bias时 
 
 $`vocab\_size*dim + (12*dim^2+2*dim) * layers + dim+dim*vocab\_size`$
+
+## llama-2-7b
+```
+{"dim": 4096, "multiple_of": 256, "n_heads": 32, "n_layers": 32, "norm_eps": 1e-05, "vocab_size": -1}
+```
+存在bias时
+
+$`vocab\_size*4096 + (12*4096^2 +8*4096 + 8*4096/3) * 32 + 4096+(4096*vocab\_size + 4096)=6,442,450,944+4096`$
+
+不存在bias时 
+
+$`vocab\_size*4096 + (12*4096^2+2*4096) * 32 + 4096+4096*vocab\_size`=6,442,450,944+4096+4096$
