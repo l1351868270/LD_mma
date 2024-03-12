@@ -36,7 +36,9 @@ $`4*dim^2+dim`$
 
 存在bias时 
 
-$`dim * hiddenDim + dim + hiddenDim * dim + hiddenDim + dim * hiddenDim + dim = 3*hiddenDim*dim + 2*dim + hiddenDim`$
+$`dim * hiddenDim + dim + hiddenDim * dim + hiddenDim + dim * hiddenDim + dim`$
+
+$` = 3*hiddenDim*dim + 2*dim + hiddenDim`$
 
 $` = 8*dim/3 * dim *3+ 2*dim + 8*dim/3 = 8*dim^2 + 2*dim + 8*dim/3`$
 
