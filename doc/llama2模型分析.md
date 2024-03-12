@@ -101,6 +101,8 @@ $`dim*vocab\_size`$
 
 $`vocab\_size*dim + (12*dim^2 +8*dim + 8*dim/3) * layers + dim+(dim*vocab\_size + dim)`$
 
+$`=2*vocab\_size*dim + (12*dim^2 +8*dim + 8*dim/3) * layers + 2*dim`$
+
 不存在bias时 
 
 $`vocab\_size*dim + (12*dim^2+2*dim) * layers + dim+dim*vocab\_size`$
@@ -117,4 +119,8 @@ $`=6,442,450,944+4096`$
 
 不存在bias时 
 
-$`vocab\_size*4096 + (12*4096^2+2*4096) * 32 + 4096+4096*vocab\_size`=6,442,450,944+4096+4096$
+$`vocab\_size*4096 + (12*4096^2+2*4096) * 32 + 4096+4096*vocab\_size`$
+
+$`=6,442,450,944+4096+4096`$
+
+## llama-2-7b
