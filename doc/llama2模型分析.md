@@ -22,7 +22,7 @@ attention：有四个参数self.wq, self.wk, self.wv, self.wo，每个权重的�
 ### ffn
 有三个参数self.w1, self.w2, self.w3，参数 
 
-$$hiddenDim=2*4*dim/3=8*dim/3$$
+$`hiddenDim=2*4*dim/3=8*dim/3`$
 
 存在bias时 
 
