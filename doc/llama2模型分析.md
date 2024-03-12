@@ -77,5 +77,34 @@ $` 4*dim^2+dim + 8*dim/3 * dim * 3 + dim = 12*dim^2+2*dim `$
 
 $`vocab\_size*dim`$
 
+### self.layers
+存在bias时
 
+$`(12*dim^2 +8*dim + 8*dim/3) * layers`$
 
+不存在bias时 
+
+$`(12*dim^2+2*dim) * layers`$
+
+### self.norm
+
+$dim$
+
+### self.output
+存在bias时
+
+$`dim*vocab\_size + dim`$
+
+不存在bias时 
+
+$`dim*vocab\_size`$
+
+### llama-2 total
+
+存在bias时
+
+$`vocab\_size*dim + (12*dim^2 +8*dim + 8*dim/3) * layers + dim+(dim*vocab\_size + dim)`$
+
+不存在bias时 
+
+$`vocab\_size*dim + (12*dim^2+2*dim) * layers + dim+dim*vocab\_size`$
