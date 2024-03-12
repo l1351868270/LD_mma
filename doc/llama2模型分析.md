@@ -24,7 +24,7 @@ attention：有四个参数self.wq, self.wk, self.wv, self.wo，每个权重的�
 
 存在bias时 
 
-$$dim * hiddenDim + dim + hiddenDim * dim + hiddenDim + dim * hiddenDim + dim = 3*hiddenDim*dim + 2*dim + hiddenDim = 8*dim/3 * dim *3+ 2*dim + 8*dim/3 = 8*dim^2 + 2*dim + 8*dim/3$$
+$`dim * hiddenDim + dim + hiddenDim * dim + hiddenDim + dim * hiddenDim + dim = 3*hiddenDim*dim + 2*dim + hiddenDim = 8*dim/3 * dim *3+ 2*dim + 8*dim/3 = 8*dim^2 + 2*dim + 8*dim/3`$
 
 不存在bias时 $ 8*dim/3 * dim * 3 = 8*dim^2$
 
