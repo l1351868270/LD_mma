@@ -103,9 +103,15 @@ $`vocab\_size*dim + (12*dim^2 +8*dim + 8*dim/3) * layers + dim+(dim*vocab\_size 
 
 $`=2*vocab\_size*dim + (12*dim^2 +8*dim + 8*dim/3) * layers + 2*dim`$
 
+$`=12*layers*dim^2 + (2*vocab\_size+8*dim*layers+8*dim/3*layers+2)*dim`$
+
+$`\approx 12*layers*dim^2`$
+
 不存在bias时 
 
 $`vocab\_size*dim + (12*dim^2+2*dim) * layers + dim+dim*vocab\_size`$
+
+$`=12*layers*dim^2+(2*vocab\_size+2*layers+1)*dim`$
 
 ## llama-2-7b
 ```
