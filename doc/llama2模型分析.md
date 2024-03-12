@@ -35,7 +35,12 @@ $`dim * hiddenDim + dim + hiddenDim * dim + hiddenDim + dim * hiddenDim + dim = 
 
 ## transformer/per
 存在bias时 
-$`4*dim^2+5*dim + 8*dim/3 * dim * 3 + 3*dim + 8*dim/3 \\= 4*dim^2+8*dim/3*dim*3+8*dim + 8*dim/3 \\= 12*dim^2 +8*dim + 8*dim/3`$
+
+$`4*dim^2+5*dim + 8*dim/3 * dim * 3 + 3*dim + 8*dim/3`$
+
+$`= 4*dim^2+8*dim/3*dim*3+8*dim + 8*dim/3`$ 
+
+$`= 12*dim^2 +8*dim + 8*dim/3`$
 
 不存在bias时 $` 4*dim^2+dim + 8*dim/3 * dim * 3 + dim = 12*dim^2+2*dim `$
 
