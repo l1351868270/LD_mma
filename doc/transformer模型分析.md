@@ -28,7 +28,7 @@ class TransformerBlock(nn.Module):
         self.attention = Attention(args)
         self.feed_forward = FeedForward(
             dim=args.dim,
-            hidden_dim=4  args.dim,
+            hidden_dim=4 * args.dim,
             multiple_of=args.multiple_of,
             ffn_dim_multiplier=args.ffn_dim_multiplier,
         )
@@ -97,27 +97,27 @@ class Attention(nn.Module):
 
         self.wq = ColumnParallelLinear(
             args.dim,
-            args.n_heads  self.head_dim,
+            args.n_heads * self.head_dim,
             bias=False,
             gather_output=False,
             init_method=lambda x: x,
         )
         self.wk = ColumnParallelLinear(
             args.dim,
-            self.n_kv_heads  self.head_dim,
+            self.n_kv_heads * self.head_dim,
             bias=False,
             gather_output=False,
             init_method=lambda x: x,
         )
         self.wv = ColumnParallelLinear(
             args.dim,
-            self.n_kv_heads  self.head_dim,
+            self.n_kv_heads * self.head_dim,
             bias=False,
             gather_output=False,
             init_method=lambda x: x,
         )
         self.wo = RowParallelLinear(
-            args.n_heads  self.head_dim,
+            args.n_heads * self.head_dim,
             args.dim,
             bias=False,
             input_is_parallel=True,
@@ -220,11 +220,11 @@ class FeedForward(nn.Module):
 
         """
         super().__init__()
-        hidden_dim = int(2  hidden_dim / 3)
+        hidden_dim = int(2 * hidden_dim / 3)
         # custom dim factor multiplier
         if ffn_dim_multiplier is not None:
-            hidden_dim = int(ffn_dim_multiplier  hidden_dim)
-        hidden_dim = multiple_of  ((hidden_dim + multiple_of - 1) // multiple_of)
+            hidden_dim = int(ffn_dim_multiplier * hidden_dim)
+        hidden_dim = multiple_of * ((hidden_dim + multiple_of - 1) // multiple_of)
 
         self.w1 = ColumnParallelLinear(
             dim, hidden_dim, bias=False, gather_output=False, init_method=lambda x: x
@@ -237,7 +237,7 @@ class FeedForward(nn.Module):
         )
 
     def forward(self, x):
-        return self.w2(F.silu(self.w1(x))  self.w3(x))
+        return self.w2(F.silu(self.w1(x)) * self.w3(x))
 ```
 ## rmsnorm
 ```
@@ -270,7 +270,7 @@ class RMSNorm(torch.nn.Module):
             torch.Tensor: The normalized tensor.
 
         """
-        return x  torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
+        return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
 
     def forward(self, x):
         """
@@ -284,7 +284,7 @@ class RMSNorm(torch.nn.Module):
 
         """
         output = self._norm(x.float()).type_as(x)
-        return output  self.weight
+        return output * self.weight
 ```
 # 模型参数量
 ## self-attention
@@ -305,22 +305,22 @@ attention：有四个参数self.wq, self.wk, self.wv, self.wo，每个权重的�
 ### ffn_norm
 只有一个参数self.weight，参数量为 $dim$
 ### ffn
-有三个参数self.w1, self.w2, self.w3，参数 $hidden\_dim = 4  dim  2 / 3 = 8dim / 3 $ 
+有三个参数self.w1, self.w2, self.w3，参数 $hidden\_dim = 4 * dim * 2 / 3 = 8*dim / 3 $ 
 
-存在bias时 $dim  hidden\_dim + dim + hidden\_dim  dim + hidden\_dim + dim  hidden\_dim + dim = 3hidden\_dimdim + 2dim + hidden\_dim = 8dim/3  dim 3+ 2dim + 8dim/3 \approx 8dim^2 + 2dim + 8dim/3$ 
+存在bias时 $dim * hidden\_dim + dim + hidden\_dim * dim + hidden\_dim + dim * hidden\_dim + dim = 3*hidden\_dim*dim + 2*dim + hidden\_dim = 8*dim/3 * dim *3+ 2*dim + 8*dim/3 \approx 8*dim^2 + 2*dim + 8*dim/3$ 
 
-不存在bias时 $ 8dim/3  dim  3 \approx 8dim^2$
+不存在bias时 $ 8*dim/3 * dim * 3 \approx 8*dim^2$
 
 ### ffn total
-存在bias时 $8dim/3  dim  3 + 3dim + 8dim/3 \approx 8dim^2 + 3dim + 8dim/3$
+存在bias时 $8*dim/3 * dim * 3 + 3*dim + 8*dim/3 \approx 8*dim^2 + 3*dim + 8*dim/3$
 
-不存在bias时 $ 8dim/3  dim  3 + dim \approx 8dim^2 + dim $
+不存在bias时 $ 8*dim/3 * dim * 3 + dim \approx 8*dim^2 + dim $
 
 ## transformer/per
 存在bias时 
-$4dim^2+5dim + 8dim/3  dim  3 + 3dim + 8dim/3 = 4dim^2+8dim/3dim3+8dim + 8dim/3 \approx 12dim^2 +8dim + 8dim/3$
+$4*dim^2+5*dim + 8*dim/3 * dim * 3 + 3*dim + 8*dim/3 = 4*dim^2+8*dim/3*dim*3+8*dim + 8*dim/3 \approx 12*dim^2 +8*dim + 8*dim/3$
 
-不存在bias时 $ 4dim^2+dim + 8dim/3  dim  3 + dim \approx 12dim^2+2dim $
+不存在bias时 $ 4*dim^2+dim + 8*dim/3 * dim * 3 + dim \approx 12*dim^2+2*dim $
 
 
 
