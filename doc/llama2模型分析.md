@@ -10,12 +10,12 @@ attention：有四个参数self.wq, self.wk, self.wv, self.wo，每个权重的�
 
 存在bias时  $`4*dim^2+4*dim`$  
 
-不存在bias时 $4dim^2$ 
+不存在bias时 $`4*dim^2`$ 
 
 ### self-attention total
-存在bias时 $4dim^2+5dim$ 
+存在bias时 $`4*dim^2+5*dim`$ 
 
-不存在bias时 $4dim^2+dim$
+不存在bias时 $`4*dim^2+dim`$
 ## mlp
 ### ffn_norm
 只有一个参数self.weight，参数量为 $dim$
