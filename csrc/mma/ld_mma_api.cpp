@@ -32,6 +32,8 @@ void cute_matmul_v4(const torch::Tensor C, const torch::Tensor A, torch::Tensor 
 // cute softmax
 void cute_softmax_v1(const torch::Tensor C);
 
+void cute_matmul_softmax_v1(const torch::Tensor C, const torch::Tensor A, torch::Tensor B);
+
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   // bank conflicts
   m.def("cpp_bank_conflicts_deviceprop", &bank_conflicts_deviceprop, "ld_mma bank conflicts device prop");
@@ -56,4 +58,6 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("cpp_cute_matmul_v4", &cute_matmul_v4, "ld_mma cute matmul v4");
   // cute softmax
   m.def("cpp_cute_softmax_v1", &cute_softmax_v1, "ld_mma cute softmax v1");
+    // cute softmax
+  m.def("cpp_cute_matmul_softmax_v1", &cute_matmul_softmax_v1, "ld_mma cute matmul softmax v1");
 }

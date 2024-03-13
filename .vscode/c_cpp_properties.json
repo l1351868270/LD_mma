@@ -4,6 +4,7 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/**",
+                "${workspaceFolder}/csrc/mma/src/",
                 "/usr/local/cuda/include/**",
                 "/root/miniconda3/envs/apex/include/python3.10/**",
                 "/root/miniconda3/envs/apex/lib/python3.10/site-packages/torch/include/**"

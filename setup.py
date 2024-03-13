@@ -129,7 +129,7 @@ ext_modules.append(
             "csrc/mma/src/cublas_matmul.cu",
             "csrc/mma/src/warp_matmul.cu",
             "csrc/mma/src/cute_matmul.cu",
-            "csrc/mma/src/cute_softmax.cu",
+            "csrc/mma/src/softmax/cute_matmul_softmax.cu",
         ],
         extra_compile_args={
             "cxx": ["-O3", "-std=c++17"] + generator_flag,
@@ -155,6 +155,7 @@ ext_modules.append(
         },
         include_dirs=[
             Path(this_dir) / 'csrc' / 'cutlass' / 'include',
+            Path(this_dir) / 'csrc' / 'mma' / 'src',
         ],
         libraries=['cublas'],
         library_dirs=[
