@@ -173,6 +173,7 @@ void cute_matmul_v1_cuda(const torch::Tensor C, const torch::Tensor A, torch::Te
   printf("threads is (%d, %d, %d); blocks is (%d, %d, %d)\n", threads.x, threads.y, threads.z, blocks.x, blocks.y, blocks.z);
   
   CuteMatmulV1<Cute_traits><<<blocks, threads, smem_size>>>(C_data, A_data, B_data, M, N, K);
+  cudaDeviceSynchronize();
   cudaPeekAtLastError();
   time_t t = time(NULL) - now;
   printf("cuda cost is %d\n", t);

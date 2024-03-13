@@ -29,13 +29,13 @@ C = torch.empty((M, N), device='cuda', dtype=dtype, requires_grad=False)
 #     print(B[i])
 cute_matmul_v3(C, A, B)
 
-print(f'C: {C}')
+# print(f'C: {C}')
 # for i in range(M):
 #     print(C[i])
 
-BT = B.transpose(0, 1).contiguous()
-D = torch.matmul(A, BT)
-print(f'D: {D}')
+# BT = B.transpose(0, 1).contiguous()
+# D = torch.matmul(A, BT)
+# print(f'D: {D}')
 # print('C:')
 # for i in range(M):
 #     print(D[i])

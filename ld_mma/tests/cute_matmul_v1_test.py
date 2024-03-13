@@ -20,9 +20,9 @@ C = torch.empty((M, N), device='cuda', dtype=dtype, requires_grad=False)
 
 cute_matmul_v1(C, A, B)
 
-print(f'C: {C}')
+# print(f'C: {C}')
 
-B = B.transpose(0, 1).contiguous()
-D = torch.matmul(A, B)
+# B = B.transpose(0, 1).contiguous()
+# D = torch.matmul(A, B)
 
-print(f'D: {D}')
+# print(f'D: {D}')

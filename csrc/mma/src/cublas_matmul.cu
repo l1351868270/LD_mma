@@ -42,4 +42,5 @@ void cublas_matmul(const torch::Tensor C, const torch::Tensor A, torch::Tensor B
           	  A_data, K,
           	  &beta,
           	  C_data, N);
+    cudaDeviceSynchronize();
 }

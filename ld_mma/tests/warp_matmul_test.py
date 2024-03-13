@@ -19,8 +19,8 @@ C = torch.empty((M, N), device='cuda', dtype=dtype, requires_grad=False)
 
 warp_matmul(C, A, B)
 
-print(f'C: {C}')
+# print(f'C: {C}')
 
-D = torch.matmul(A, B)
+# D = torch.matmul(A, B)
 
-print(f'D: {D}')
+# print(f'D: {D}')

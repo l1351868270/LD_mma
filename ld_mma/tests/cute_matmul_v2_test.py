@@ -26,8 +26,8 @@ B = torch.randn((N, K), device='cuda', dtype=dtype, requires_grad=False)
 C = torch.empty((M, N), device='cuda', dtype=dtype, requires_grad=False)
 
 cute_matmul_v2(C, A, B)
-print(f'C: {C}')
+# print(f'C: {C}')
 
-BT = B.transpose(0, 1).contiguous()
-D = torch.matmul(A, BT)
-print(f'D: {D}')
+# BT = B.transpose(0, 1).contiguous()
+# D = torch.matmul(A, BT)
+# print(f'D: {D}')
