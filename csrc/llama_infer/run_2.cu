@@ -1,36 +1,37 @@
-/*Adapted from https://github.com/karpathy/llama2.c/blob/master/run.c
+/*
+Adapted from https://github.com/karpathy/llama2.c/blob/master/run.c
 
-ncu -k rmsnorm -f --set full -o run_1 ./run_1 stories42M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
+ncu -k rmsnorm -f --set full -o run_2 ./run_2 stories42M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
 
-ncu -k rmsnorm --csv --log-file run_1_rmsnorm.csv --cache-control=all --clock-control=base --metrics gpu__time_duration.sum ./run_1 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
-python stat-csv.py run_1_rmsnorm.csv --kernels "rmsnorm"
-['rmsnorm']
+ncu -k rmsnormV2 --csv --log-file run_2_rmsnorm.csv --cache-control=all --clock-control=base --metrics gpu__time_duration.sum ./run_2 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
+python stat-csv.py run_2_rmsnorm.csv --kernels "rmsnormV2"
+['rmsnormV2']
 kernel, mean(us), std, med, num
-rmsnorm,  59.619,  0.424,  59.520,  306
+rmsnormV2,  4.932,  0.179,  4.864,  325
 
-ncu -k rope --csv --log-file run_1_rope.csv --cache-control=all --clock-control=base --metrics gpu__time_duration.sum ./run_1 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
-python stat-csv.py run_1_rope.csv --kernels "rope"
-['rope']
+ncu -k ropeV2 --csv --log-file run_2_ropeV2.csv --cache-control=all --clock-control=base --metrics gpu__time_duration.sum ./run_2 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
+python stat-csv.py run_2_ropeV2.csv --kernels "ropeV2"
+['ropeV2']
 kernel, mean(us), std, med, num
-rope,  141.412,  0.414,  141.296,  136
+ropeV2,  3.373,  0.181,  3.424,  1936
 
-ncu -k residual_connection --csv --log-file run_1_residual_connection.csv --cache-control=all --clock-control=base --metrics gpu__time_duration.sum ./run_1 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
-python stat-csv.py run_1_residual_connection.csv --kernels "residual_connection"
-['residual_connection']
+ncu -k residual_connectionV2 --csv --log-file run_2_residual_connectionV2.csv --cache-control=all --clock-control=base --metrics gpu__time_duration.sum ./run_2 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
+python stat-csv.py run_2_residual_connectionV2.csv --kernels "residual_connectionV2"
+['residual_connectionV2']
 kernel, mean(us), std, med, num
-residual_connection,  31.509,  0.161,  31.488,  387
+residual_connectionV2,  2.217,  0.131,  2.208,  3936
 
-ncu -k swiglu --csv --log-file run_1_swiglu.csv --cache-control=all --clock-control=base --metrics gpu__time_duration.sum ./run_1 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
-python stat-csv.py run_1_swiglu.csv --kernels "swiglu"
-['swiglu']
+ncu -k swigluV2 --csv --log-file run_2_swigluV2.csv --cache-control=all --clock-control=base --metrics gpu__time_duration.sum ./run_2 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
+python stat-csv.py run_2_swigluV2.csv --kernels "swigluV2"
+['swigluV2']
 kernel, mean(us), std, med, num
-swiglu,  213.766,  0.337,  213.760,  147
+swigluV2,  2.662,  0.110,  2.656,  1856
 
-Inference for Llama-2 Transformer model in pure C
-nvcc -O3 -o run_1 run_1.cu -lm
-./run_1 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
+nsys profile ./run_2 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
+Inference for Llama-2 Transformer model in pure C 
+nvcc -O3 -arch=sm_86 -o run_2 run_2.cu
+./run_2 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
 */
-
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,6 +44,7 @@ nvcc -O3 -o run_1 run_1.cu -lm
 #include <cuda_fp16.h>
 #include <cuda.h>
 #include <stdint.h>
+#include <cublas_v2.h>
 #if defined _WIN32
     #include "win.h"
 #else
@@ -232,7 +234,7 @@ void rmsnorm(half* o, half* x, half* weight, int size) {
         ss += x[j] * x[j];
     }
     // __shfl_xor_sync(uint32_t(-1), x[0], 1);
-    // printf("ss = %f\n", ss);
+    // printf("ss = %f\n", __half2float(ss));
     ss /= size;
     ss += 1e-5f;
     ss = 1.0f / sqrtf(ss);
@@ -241,6 +243,30 @@ void rmsnorm(half* o, half* x, half* weight, int size) {
     for (int j = 0; j < size; j++) {
         o[j] = weight[j] * (ss * x[j]);
         // printf("o[%d] = %f\n", j, __half2float(o[j]));
+    }
+}
+
+__global__
+void rmsnormV2(half* o, half* x, half* weight, int size) {
+    // calculate sum of squares
+    half ss = 0.0f;
+    int l = size / blockDim.x;
+    #pragma unroll
+    for (int i = 0; i < l; i++) {
+        ss += x[threadIdx.x * l + i] * x[threadIdx.x * l + i];
+    }
+
+    #pragma unroll
+    for (int mask = blockDim.x / 2; mask > 0; mask /= 2) {
+        ss += __shfl_xor_sync(uint32_t(-1), ss, mask);
+    }
+    // printf("threadx=%d, ss = %f\n", threadIdx.x, __half2float(ss));
+    ss /= size;
+    ss += 1e-5f;
+    ss = 1.0f / sqrtf(ss);
+    #pragma unroll
+    for (int j = 0; j < l; j++) {
+        o[threadIdx.x * l + j] = weight[threadIdx.x * l + j] * (ss * x[threadIdx.x * l + j]);
     }
 }
 
@@ -321,6 +347,25 @@ void matmul(half* xout, half* x, half* w, int n, int d) {
     }
 }
 
+void matmulV2(cublasHandle_t* handle, half* xout, half* x, half* w, int n, int d) {
+    // W (d,n) @ x (n,) -> xout (d,)
+    // by far the most amount of time is spent inside this little function
+    int M = 1;
+    int N = d;
+    int K = n;
+
+    half alpha = half(1.f);
+    half beta = half(0.f);
+    cublasStatus_t ret = cublasHgemm(*handle, CUBLAS_OP_T, CUBLAS_OP_N,
+          	  N, M, K,
+          	  &alpha,
+          	  w, K,
+          	  x, K,
+          	  &beta,
+          	  xout, N);
+    
+}
+
 __global__
 void rope(half* q, half* k, int dim, int kv_dim, int head_size, int pos) {
         for (int i = 0; i < dim; i+=2) {
@@ -334,8 +379,6 @@ void rope(half* q, half* k, int dim, int kv_dim, int head_size, int pos) {
                 half* vec = v == 0 ? q : k; // the vector to rotate (query or key)
                 half v0 = vec[i];
                 half v1 = vec[i+1];
-                half vel_i = v0 * fcr - v1 * fci;
-                half vel_ii = v0 * fci + v1 * fcr;
                 vec[i]   = v0 * fcr - v1 * fci;
                 vec[i+1] = v0 * fci + v1 * fcr;
                 // printf("vel_i: %f\n", (float)vel_i);
@@ -343,6 +386,25 @@ void rope(half* q, half* k, int dim, int kv_dim, int head_size, int pos) {
         }
 }
 
+__global__
+void ropeV2(half* q, half* k, int dim, int kv_dim, int head_size, int pos) {
+    int i = 2 * (threadIdx.x + blockDim.x * blockIdx.x);
+        // for (int i = 0; i < dim; i+=2) {
+    int head_dim = i % head_size;
+    half freq = 1.0f / powf(10000.0f, head_dim / (float)head_size);
+    half val = (half)pos * freq;
+    half fcr = cosf(val);
+    half fci = sinf(val);
+    int rotn = i < kv_dim ? 2 : 1; // how many vectors? 2 = q & k, 1 = q only
+    for (int v = 0; v < rotn; v++) {
+        half* vec = v == 0 ? q : k; // the vector to rotate (query or key)
+        half v0 = vec[i];
+        half v1 = vec[i+1];
+        vec[i]   = v0 * fcr - v1 * fci;
+        vec[i+1] = v0 * fci + v1 * fcr;
+                // printf("vel_i: %f\n", (float)vel_i);
+    }
+}
 
 __global__ 
 void multihead_attention(half* s_att, half* s_q, half* s_key_cache, half* s_value_cache, half* s_xb,
@@ -392,6 +454,12 @@ void residual_connection(half* x, half* src, int dim) {
         }
 }
 
+__global__
+void residual_connectionV2(half* x, half* src, int dim) {
+    int i = threadIdx.x + blockDim.x * blockIdx.x;
+    x[i] += src[i];
+}
+
 __global__ 
 void swiglu(half* s_hb, half* s_hb2, int hidden_dim) {
         // SwiGLU non-linearity
@@ -406,6 +474,17 @@ void swiglu(half* s_hb, half* s_hb2, int hidden_dim) {
 }
 
 __global__ 
+void swigluV2(half* s_hb, half* s_hb2, int hidden_dim) {
+    int i = threadIdx.x + blockDim.x * blockIdx.x;
+    half val = s_hb[i];
+    // silu(x)=x*σ(x), where σ(x) is the logistic sigmoid
+    val *= (1.0f / (1.0f + expf(-val)));
+    // elementwise multiply with w3(x)
+    val *= s_hb2[i];
+    s_hb[i] = val;
+}
+
+__global__ 
 void print_vector(half* x, int dim) {
         for (int i = 0; i < dim; i++) {
             printf("%d=%f ", i, __half2float(x[i]));
@@ -413,7 +492,7 @@ void print_vector(half* x, int dim) {
         printf("\n");
 }
 
-half* forward(Transformer* transformer, int token, int pos) {
+half* forward(cublasHandle_t* handle, Transformer* transformer, int token, int pos) {
 
     // a few convenience variables
     Config* p = &transformer->config;
@@ -439,15 +518,15 @@ half* forward(Transformer* transformer, int token, int pos) {
     // printf("x: \n");
     // print_vector<<<1,1>>>(content_row, dim);
     // forward all the layers
+
     for(unsigned long long l = 0; l < p->n_layers; l++) {
 
         // attention rmsnorm
-        rmsnorm<<<1, 1>>>(s->xb, x, w->rms_att_weight + l*dim, dim);
-        // printf("rmsnorm: \n");
+        rmsnormV2<<<1,32>>>(s->xb, x, w->rms_att_weight + l*dim, dim);
+        // printf("rmsnormV2: \n");
         // print_vector<<<1,1>>>(s->xb, dim);
         // cudaDeviceSynchronize();
         // exit(1);
-
 
         // key and value point to the kv cache
         int loff = l * p->seq_len * kv_dim; // kv cache layer offset for convenience
@@ -455,14 +534,15 @@ half* forward(Transformer* transformer, int token, int pos) {
         s->v = s->value_cache + loff + pos * kv_dim;
 
         // qkv matmuls for this position
-        matmul<<<1,1>>>(s->q, s->xb, w->wq + l*dim*dim, dim, dim);
-        // printf("matmul: \n");
+
+        matmulV2(handle, s->q, s->xb, w->wq + l*dim*dim, dim, dim);
+        // printf("matmulV2: \n");
         // print_vector<<<1,1>>>(s->q, dim);
         // cudaDeviceSynchronize();
         // exit(1);
 
-        matmul<<<1,1>>>(s->k, s->xb, w->wk + l*dim*kv_dim, dim, kv_dim);
-        matmul<<<1,1>>>(s->v, s->xb, w->wv + l*dim*kv_dim, dim, kv_dim);
+        matmulV2(handle, s->k, s->xb, w->wk + l*dim*kv_dim, dim, kv_dim);
+        matmulV2(handle, s->v, s->xb, w->wv + l*dim*kv_dim, dim, kv_dim);
 
         // RoPE relative positional encoding: complex-valued rotate q and k in each head
         // for (int i = 0; i < dim; i+=2) {
@@ -488,7 +568,7 @@ half* forward(Transformer* transformer, int token, int pos) {
         //     }
         // }
 
-        rope<<<1, 1>>>(s->q, s->k, dim, kv_dim, head_size, pos);
+        // rope<<<1, 1>>>(s->q, s->k, dim, kv_dim, head_size, pos);
         // printf("rope q: \n");
         // print_vector<<<1,1>>>(s->q, dim);
         // cudaDeviceSynchronize();
@@ -496,7 +576,16 @@ half* forward(Transformer* transformer, int token, int pos) {
         // print_vector<<<1,1>>>(s->k, dim);
         // cudaDeviceSynchronize();
         // exit(1);
+        ropeV2<<<dim/64, 32>>>(s->q, s->k, dim, kv_dim, head_size, pos);
+        // printf("ropeV2 q: \n");
+        // print_vector<<<1,1>>>(s->q, dim);
+        // cudaDeviceSynchronize();
+        // printf("ropeV2 k: \n");
+        // print_vector<<<1,1>>>(s->k, dim);
+        // cudaDeviceSynchronize();
+        // exit(1);
 
+        
         // // multihead attention. iterate over all heads
         // int h;
         // #pragma omp parallel for private(h)
@@ -540,20 +629,21 @@ half* forward(Transformer* transformer, int token, int pos) {
         multihead_attention<<<1,1>>>(s->att, s->q, s->key_cache, s->value_cache, s->xb,
                          p->n_heads, head_size, p->seq_len, pos, loff, kv_dim, kv_mul);
         // final matmul to get the output of the attention
-        matmul<<<1,1>>>(s->xb2, s->xb, w->wo + l*dim*dim, dim, dim);
+        matmulV2(handle, s->xb2, s->xb, w->wo + l*dim*dim, dim, dim);
 
         // residual connection back into x
         // for (int i = 0; i < dim; i++) {
         //     x[i] += s->xb2[i];
         // }
-        residual_connection<<<1,1>>>(x, s->xb2, dim);
+        // residual_connection<<<1,1>>>(x, s->xb2, dim);
+        residual_connectionV2<<<dim/32,32>>>(x, s->xb2, dim);
         // ffn rmsnorm
-        rmsnorm<<<1,1>>>(s->xb, x, w->rms_ffn_weight + l*dim, dim);
+        rmsnormV2<<<1,32>>>(s->xb, x, w->rms_ffn_weight + l*dim, dim);
 
         // Now for FFN in PyTorch we have: self.w2(F.silu(self.w1(x)) * self.w3(x))
         // first calculate self.w1(x) and self.w3(x)
-        matmul<<<1,1>>>(s->hb, s->xb, w->w1 + l*dim*hidden_dim, dim, hidden_dim);
-        matmul<<<1,1>>>(s->hb2, s->xb, w->w3 + l*dim*hidden_dim, dim, hidden_dim);
+        matmulV2(handle, s->hb, s->xb, w->w1 + l*dim*hidden_dim, dim, hidden_dim);
+        matmulV2(handle, s->hb2, s->xb, w->w3 + l*dim*hidden_dim, dim, hidden_dim);
 
         // SwiGLU non-linearity
         // for (int i = 0; i < hidden_dim; i++) {
@@ -564,26 +654,34 @@ half* forward(Transformer* transformer, int token, int pos) {
         //     val *= s->hb2[i];
         //     s->hb[i] = val;
         // }
-        swiglu<<<1,1>>>(s->hb, s->hb2, hidden_dim);
+        // swiglu<<<1,1>>>(s->hb, s->hb2, hidden_dim);
+        swigluV2<<<hidden_dim/32,32>>>(s->hb, s->hb2, hidden_dim);
 
 
         // final matmul to get the output of the ffn
-        matmul<<<1,1>>>(s->xb, s->hb, w->w2 + l*dim*hidden_dim, hidden_dim, dim);
+        matmulV2(handle, s->xb, s->hb, w->w2 + l*dim*hidden_dim, hidden_dim, dim);
 
         // residual connection
         // for (int i = 0; i < dim; i++) {
         //     x[i] += s->xb[i];
         // }
-        residual_connection<<<1, 1>>>(x, s->xb, dim);
+        // residual_connection<<<1, 1>>>(x, s->xb, dim);
+        residual_connectionV2<<<dim/32, 32>>>(x, s->xb, dim);
     }
 
     // final rmsnorm
-    rmsnorm<<<1,1>>>(x, x, w->rms_final_weight, dim);
+    rmsnormV2<<<1,32>>>(x, x, w->rms_final_weight, dim);
+    // printf("xV2: \n");
+    // print_vector<<<1,1>>>(x, dim);
+    // cudaDeviceSynchronize();
+    // exit(1);
 
     // classifier into logits
-    matmul<<<1,1>>>(s->logits, x, w->wcls, p->dim, p->vocab_size);
-    // print_vector<<<1,1>>>(s->logits, dim);
-
+    matmulV2(handle, s->logits, x, w->wcls, p->dim, p->vocab_size);
+    // printf("logitsV2: \n");
+    // print_vector<<<1,1>>>(s->logits, p->vocab_size);
+    // cudaDeviceSynchronize();
+    // exit(1);
 
     return s->logits;
 }
@@ -979,10 +1077,13 @@ void generate(Transformer *transformer, Tokenizer *tokenizer, Sampler *sampler, 
     int next;        // will store the next token in the sequence
     int token = prompt_tokens[0]; // kick off with the first token in the prompt
     int pos = 0;     // position in the sequence
+    half* host_logits = (half*)calloc(sampler->vocab_size, sizeof(half));
+    cublasHandle_t handle;
+    cublasCreate(&handle);
     while (pos < steps) {
 
         // forward the transformer to get logits for the next token
-        half* logits = forward(transformer, token, pos);
+        half* logits = forward(&handle, transformer, token, pos);
         // half* logits = forward(transformer, token, pos);
 
         // advance the state machine
@@ -991,7 +1092,6 @@ void generate(Transformer *transformer, Tokenizer *tokenizer, Sampler *sampler, 
             next = prompt_tokens[pos + 1];
         } else {
             // otherwise sample the next token from the logits
-            half* host_logits = (half*)calloc(sampler->vocab_size, sizeof(half));;
             cudaMemcpy((void*)host_logits, logits, (sampler->vocab_size) * sizeof(half), cudaMemcpyDeviceToHost);
             // printf("logits=%p %p\n", logits, host_logits);
             // for (int i = 0; i < sampler->vocab_size; i++) {
@@ -1021,7 +1121,8 @@ void generate(Transformer *transformer, Tokenizer *tokenizer, Sampler *sampler, 
         long end = time_in_ms();
         fprintf(stderr, "achieved tok/s: %f\n", (pos-1) / (double)(end-start)*1000);
     }
-
+    cublasDestroy(handle);
+    free(host_logits);
     free(prompt_tokens);
 }
 
@@ -1060,6 +1161,8 @@ void chat(Transformer *transformer, Tokenizer *tokenizer, Sampler *sampler,
     int token;       // stores the current token to feed into the transformer
     int prev_token;
     int pos = 0;     // position in the sequence
+    cublasHandle_t handle;
+    cublasCreate(&handle);
     while (pos < steps) {
 
         // when it is the user's turn to contribute tokens to the dialog...
@@ -1110,7 +1213,7 @@ void chat(Transformer *transformer, Tokenizer *tokenizer, Sampler *sampler,
         if (token == 2) { user_turn = 1; }
 
         // forward the transformer to get logits for the next token
-        half* logits = forward(transformer, token, pos);
+        half* logits = forward(&handle, transformer, token, pos);
         next = sample(sampler, logits);
         pos++;
 
@@ -1123,6 +1226,7 @@ void chat(Transformer *transformer, Tokenizer *tokenizer, Sampler *sampler,
         if (next == 2) { printf("\n"); }
     }
     printf("\n");
+    cublasDestroy(handle);
     free(prompt_tokens);
 }
 
@@ -1208,10 +1312,10 @@ int main(int argc, char *argv[]) {
     }
 
     // // memory and file handles cleanup
-    // free_sampler(&sampler);
-    // free_tokenizer(&tokenizer);
-    // free_transformer(&transformer);
+    free_sampler(&sampler);
+    free_tokenizer(&tokenizer);
+    free_transformer(&transformer);
     printf("run end!\n");
-    // return 0;
+    return 0;
 }
 #endif
