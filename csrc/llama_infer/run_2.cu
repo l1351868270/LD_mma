@@ -27,7 +27,10 @@ python stat-csv.py run_2_swigluV2.csv --kernels "swigluV2"
 kernel, mean(us), std, med, num
 swigluV2,  2.662,  0.110,  2.656,  1856
 
-nsys profile ./run_2 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
+ncu -k multihead_attentionV2 --csv --log-file run_2_multihead_attentionV2.csv --cache-control=all --clock-control=base --metrics gpu__time_duration.sum ./run_2 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
+python stat-csv.py run_2_multihead_attentionV2.csv --kernels "multihead_attentionV2"
+
+nsys profile --stats=true ./run_2 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
 Inference for Llama-2 Transformer model in pure C 
 nvcc -O3 -arch=sm_86 -o run_2 run_2.cu
 ./run_2 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
@@ -291,8 +294,29 @@ void softmax(half* x, int size) {
     }
 }
 
-__device__ __host__
+__device__
 void device_softmax(half* x, int size) {
+    // find max value (for numerical stability)
+    half max_val = x[0];
+    for (int i = 1; i < size; i++) {
+        if (x[i] > max_val) {
+            max_val = x[i];
+        }
+    }
+    // exp and sum
+    half sum = 0.0f;
+    for (int i = 0; i < size; i++) {
+        x[i] = expf(x[i] - max_val);
+        sum += x[i];
+    }
+    // normalize
+    for (int i = 0; i < size; i++) {
+        x[i] /= sum;
+    }
+}
+
+__host__
+void host_softmax(half* x, int size) {
     // find max value (for numerical stability)
     half max_val = x[0];
     for (int i = 1; i < size; i++) {
@@ -445,6 +469,46 @@ void multihead_attention(half* s_att, half* s_q, half* s_key_cache, half* s_valu
                 }
             }
         }
+}
+
+__global__ 
+void multihead_attentionV2(half* s_att, half* s_q, half* s_key_cache, half* s_value_cache, half* s_xb,
+                         int n_heads, int head_size, int seq_len, int pos, int loff, int kv_dim, int kv_mul) {
+            int h = threadIdx.x;
+            // get the query vector for this head
+            half* q = s_q + h * head_size;
+            // attention scores for this head
+            half* att = s_att + h * seq_len;
+            // iterate over all timesteps, including the current one
+            for (int t = 0; t <= pos; t++) {
+                // get the key vector for this head and at this timestep
+                half* k = s_key_cache + loff + t * kv_dim + (h / kv_mul) * head_size;
+                // calculate the attention score as the dot product of q and k
+                half score = 0.0f;
+                for (int i = 0; i < head_size; i++) {
+                    score += q[i] * k[i];
+                }
+                score /= sqrtf(head_size);
+                // save the score to the attention buffer
+                att[t] = score;
+            }
+
+            // softmax the scores to get attention weights, from 0..pos inclusively
+            device_softmax(att, pos + 1);
+
+            // weighted sum of the values, store back into xb
+            half* xb = s_xb + h * head_size;
+            memset(xb, 0, head_size * sizeof(half));
+            for (int t = 0; t <= pos; t++) {
+                // get the value vector for this head and at this timestep
+                half* v = s_value_cache + loff + t * kv_dim + (h / kv_mul) * head_size;
+                // get the attention weight for this timestep
+                half a = att[t];
+                // accumulate the weighted value into xb
+                for (int i = 0; i < head_size; i++) {
+                    xb[i] += a * v[i];
+                }
+            }
 }
 
 __global__
@@ -626,7 +690,9 @@ half* forward(cublasHandle_t* handle, Transformer* transformer, int token, int p
         //     }
         // }
 
-        multihead_attention<<<1,1>>>(s->att, s->q, s->key_cache, s->value_cache, s->xb,
+        // multihead_attention<<<1,1>>>(s->att, s->q, s->key_cache, s->value_cache, s->xb,
+        //                  p->n_heads, head_size, p->seq_len, pos, loff, kv_dim, kv_mul);
+        multihead_attentionV2<<<1,head_size>>>(s->att, s->q, s->key_cache, s->value_cache, s->xb,
                          p->n_heads, head_size, p->seq_len, pos, loff, kv_dim, kv_mul);
         // final matmul to get the output of the attention
         matmulV2(handle, s->xb2, s->xb, w->wo + l*dim*dim, dim, dim);
@@ -1027,7 +1093,7 @@ int sample(Sampler* sampler, half* logits) {
             // printf("q=%d %p\n", q, logits);
         }
         // apply softmax to the logits to get the probabilities for next token
-        device_softmax(logits, sampler->vocab_size);
+        host_softmax(logits, sampler->vocab_size);
         // flip a (float) coin (this is our source of entropy for sampling)
         float coin = random_f32(&sampler->rng_state);
         // we sample from this distribution to get the next token

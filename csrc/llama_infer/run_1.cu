@@ -26,6 +26,13 @@ python stat-csv.py run_1_swiglu.csv --kernels "swiglu"
 kernel, mean(us), std, med, num
 swiglu,  213.766,  0.337,  213.760,  147
 
+ncu -k multihead_attention --csv --log-file run_1_multihead_attention.csv --cache-control=all --clock-control=base --metrics gpu__time_duration.sum ./run_1 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
+python stat-csv.py run_1_multihead_attention.csv --kernels "multihead_attention"
+['multihead_attention']
+kernel, mean(us), std, med, num
+multihead_attention,  825.161,  576.089,  812.656,  256
+
+
 Inference for Llama-2 Transformer model in pure C
 nvcc -O3 -o run_1 run_1.cu -lm
 ./run_1 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
@@ -265,8 +272,29 @@ void softmax(half* x, int size) {
     }
 }
 
-__device__ __host__
+__device__
 void device_softmax(half* x, int size) {
+    // find max value (for numerical stability)
+    half max_val = x[0];
+    for (int i = 1; i < size; i++) {
+        if (x[i] > max_val) {
+            max_val = x[i];
+        }
+    }
+    // exp and sum
+    half sum = 0.0f;
+    for (int i = 0; i < size; i++) {
+        x[i] = expf(x[i] - max_val);
+        sum += x[i];
+    }
+    // normalize
+    for (int i = 0; i < size; i++) {
+        x[i] /= sum;
+    }
+}
+
+__host__
+void host_softmax(half* x, int size) {
     // find max value (for numerical stability)
     half max_val = x[0];
     for (int i = 1; i < size; i++) {
@@ -929,7 +957,7 @@ int sample(Sampler* sampler, half* logits) {
             // printf("q=%d %p\n", q, logits);
         }
         // apply softmax to the logits to get the probabilities for next token
-        device_softmax(logits, sampler->vocab_size);
+        host_softmax(logits, sampler->vocab_size);
         // flip a (float) coin (this is our source of entropy for sampling)
         float coin = random_f32(&sampler->rng_state);
         // we sample from this distribution to get the next token
