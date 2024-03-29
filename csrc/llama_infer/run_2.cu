@@ -294,29 +294,8 @@ void softmax(half* x, int size) {
     }
 }
 
-__device__
+__device__ __host__
 void device_softmax(half* x, int size) {
-    // find max value (for numerical stability)
-    half max_val = x[0];
-    for (int i = 1; i < size; i++) {
-        if (x[i] > max_val) {
-            max_val = x[i];
-        }
-    }
-    // exp and sum
-    half sum = 0.0f;
-    for (int i = 0; i < size; i++) {
-        x[i] = expf(x[i] - max_val);
-        sum += x[i];
-    }
-    // normalize
-    for (int i = 0; i < size; i++) {
-        x[i] /= sum;
-    }
-}
-
-__host__
-void host_softmax(half* x, int size) {
     // find max value (for numerical stability)
     half max_val = x[0];
     for (int i = 1; i < size; i++) {
@@ -474,41 +453,58 @@ void multihead_attention(half* s_att, half* s_q, half* s_key_cache, half* s_valu
 __global__ 
 void multihead_attentionV2(half* s_att, half* s_q, half* s_key_cache, half* s_value_cache, half* s_xb,
                          int n_heads, int head_size, int seq_len, int pos, int loff, int kv_dim, int kv_mul) {
-            int h = threadIdx.x;
-            // get the query vector for this head
-            half* q = s_q + h * head_size;
-            // attention scores for this head
-            half* att = s_att + h * seq_len;
-            // iterate over all timesteps, including the current one
-            for (int t = 0; t <= pos; t++) {
-                // get the key vector for this head and at this timestep
-                half* k = s_key_cache + loff + t * kv_dim + (h / kv_mul) * head_size;
-                // calculate the attention score as the dot product of q and k
-                half score = 0.0f;
-                for (int i = 0; i < head_size; i++) {
-                    score += q[i] * k[i];
-                }
-                score /= sqrtf(head_size);
-                // save the score to the attention buffer
-                att[t] = score;
-            }
+    int h = blockIdx.x;
+    // get the query vector for this head
+    half* q = s_q + h * head_size;
+    // attention scores for this head
+    half* att = s_att + h * seq_len;
+    // iterate over all timesteps, including the current one
 
-            // softmax the scores to get attention weights, from 0..pos inclusively
-            device_softmax(att, pos + 1);
+    // int t = threadIdx.x;
 
-            // weighted sum of the values, store back into xb
-            half* xb = s_xb + h * head_size;
-            memset(xb, 0, head_size * sizeof(half));
-            for (int t = 0; t <= pos; t++) {
-                // get the value vector for this head and at this timestep
-                half* v = s_value_cache + loff + t * kv_dim + (h / kv_mul) * head_size;
-                // get the attention weight for this timestep
-                half a = att[t];
-                // accumulate the weighted value into xb
-                for (int i = 0; i < head_size; i++) {
-                    xb[i] += a * v[i];
-                }
-            }
+    // int l = pos / blockDim.x + 1;
+    // if (pos > t) {
+
+    // }
+
+    for (int t = threadIdx.x; t <= pos; t += blockDim.x) {
+        // get the key vector for this head and at this timestep
+        half* k = s_key_cache + loff + t * kv_dim + (h / kv_mul) * head_size;
+        // calculate the attention score as the dot product of q and k
+        half score = 0.0f;
+        for (int i = 0; i < head_size; i++) {
+            score += q[i] * k[i];
+        }
+        score /= sqrtf(head_size);
+        // save the score to the attention buffer
+        att[t] = score;
+    }
+    __syncthreads();
+    // softmax the scores to get attention weights, from 0..pos inclusively
+
+    if (threadIdx.x == 0) {
+        device_softmax(att, pos + 1);
+    }
+
+    // printf("blockIdx: %d\n", blockIdx.x);
+    
+    // weighted sum of the values, store back into xb
+    half* xb = s_xb + h * head_size;
+    memset(xb, 0, head_size * sizeof(half));
+    __syncthreads();
+    // if (threadIdx.x == 0) {
+    for (int i = threadIdx.x; i < head_size; i += blockDim.x) {
+        for (int t = 0; t <= pos; t += 1) {
+            // get the value vector for this head and at this timestep
+            half* v = s_value_cache + loff + t * kv_dim + (h / kv_mul) * head_size;
+            // get the attention weight for this timestep
+            half a = att[t];
+            // accumulate the weighted value into xb
+        
+            xb[i] += a * v[i];
+        }
+    }
+    // }
 }
 
 __global__
@@ -692,7 +688,7 @@ half* forward(cublasHandle_t* handle, Transformer* transformer, int token, int p
 
         // multihead_attention<<<1,1>>>(s->att, s->q, s->key_cache, s->value_cache, s->xb,
         //                  p->n_heads, head_size, p->seq_len, pos, loff, kv_dim, kv_mul);
-        multihead_attentionV2<<<1,head_size>>>(s->att, s->q, s->key_cache, s->value_cache, s->xb,
+        multihead_attentionV2<<<head_size, 1>>>(s->att, s->q, s->key_cache, s->value_cache, s->xb,
                          p->n_heads, head_size, p->seq_len, pos, loff, kv_dim, kv_mul);
         // final matmul to get the output of the attention
         matmulV2(handle, s->xb2, s->xb, w->wo + l*dim*dim, dim, dim);
@@ -1093,7 +1089,7 @@ int sample(Sampler* sampler, half* logits) {
             // printf("q=%d %p\n", q, logits);
         }
         // apply softmax to the logits to get the probabilities for next token
-        host_softmax(logits, sampler->vocab_size);
+        device_softmax(logits, sampler->vocab_size);
         // flip a (float) coin (this is our source of entropy for sampling)
         float coin = random_f32(&sampler->rng_state);
         // we sample from this distribution to get the next token
