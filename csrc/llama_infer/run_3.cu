@@ -1,40 +1,40 @@
 /*
 Adapted from https://github.com/karpathy/llama2.c/blob/master/run.c
 
-ncu -k rmsnorm -f --set full -o run_2 ./run_2 stories42M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
+ncu -k rmsnorm -f --set full -o run_3 ./run_3 stories42M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
 
-ncu -k rmsnormV2 --csv --log-file run_2_rmsnorm.csv --cache-control=all --clock-control=base --metrics gpu__time_duration.sum ./run_2 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
-python stat-csv.py run_2_rmsnorm.csv --kernels "rmsnormV2"
+ncu -k rmsnormV2 --csv --log-file run_3_rmsnorm.csv --cache-control=all --clock-control=base --metrics gpu__time_duration.sum ./run_3 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
+python stat-csv.py run_3_rmsnorm.csv --kernels "rmsnormV2"
 ['rmsnormV2']
 kernel, mean(us), std, med, num
 rmsnormV2,  4.932,  0.179,  4.864,  325
 
-ncu -k ropeV2 --csv --log-file run_2_ropeV2.csv --cache-control=all --clock-control=base --metrics gpu__time_duration.sum ./run_2 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
-python stat-csv.py run_2_ropeV2.csv --kernels "ropeV2"
+ncu -k ropeV2 --csv --log-file run_3_ropeV2.csv --cache-control=all --clock-control=base --metrics gpu__time_duration.sum ./run_3 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
+python stat-csv.py run_3_ropeV2.csv --kernels "ropeV2"
 ['ropeV2']
 kernel, mean(us), std, med, num
 ropeV2,  3.373,  0.181,  3.424,  1936
 
-ncu -k residual_connectionV2 --csv --log-file run_2_residual_connectionV2.csv --cache-control=all --clock-control=base --metrics gpu__time_duration.sum ./run_2 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
-python stat-csv.py run_2_residual_connectionV2.csv --kernels "residual_connectionV2"
+ncu -k residual_connectionV2 --csv --log-file run_3_residual_connectionV2.csv --cache-control=all --clock-control=base --metrics gpu__time_duration.sum ./run_3 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
+python stat-csv.py run_3_residual_connectionV2.csv --kernels "residual_connectionV2"
 ['residual_connectionV2']
 kernel, mean(us), std, med, num
 residual_connectionV2,  2.217,  0.131,  2.208,  3936
 
-ncu -k swigluV2 --csv --log-file run_2_swigluV2.csv --cache-control=all --clock-control=base --metrics gpu__time_duration.sum ./run_2 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
-python stat-csv.py run_2_swigluV2.csv --kernels "swigluV2"
+ncu -k swigluV2 --csv --log-file run_3_swigluV2.csv --cache-control=all --clock-control=base --metrics gpu__time_duration.sum ./run_3 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
+python stat-csv.py run_3_swigluV2.csv --kernels "swigluV2"
 ['swigluV2']
 kernel, mean(us), std, med, num
 swigluV2,  2.662,  0.110,  2.656,  1856
 
-ncu -k multihead_attentionV2 --csv --log-file run_2_multihead_attentionV2.csv --cache-control=all --clock-control=base --metrics gpu__time_duration.sum ./run_2 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
-python stat-csv.py run_2_multihead_attentionV2.csv --kernels "multihead_attentionV2"
+ncu -k multihead_attentionV2 --csv --log-file run_3_multihead_attentionV2.csv --cache-control=all --clock-control=base --metrics gpu__time_duration.sum ./run_3 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
+python stat-csv.py run_3_multihead_attentionV2.csv --kernels "multihead_attentionV2"
 
-nsys profile --stats=true ./run_2 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
+nsys profile --stats=true ./run_3 llama2_7b_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
 Inference for Llama-2 Transformer model in pure C 
-nvcc -O3 -arch=sm_86 -o run_2 run_2.cu
-./run_2 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
-./run_2  llama2_7b_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
+nvcc -O3 -arch=sm_86 -o run_3 run_3.cu
+./run_3 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
+./run_3  llama2_7b_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
 */
 
 #include <stdio.h>
@@ -206,18 +206,10 @@ void read_checkpoint(char* checkpoint, Config* config, TransformerWeights* weigh
     // }
     // memory_map_weights(weights, config, weights_ptr, shared_weights);
     void *device_memory;
-    cudaError_t err;
-    err =  cudaMalloc((void**)&device_memory, *file_size);
-    if (err != cudaSuccess) {
-        printf("cudaMalloc error %d\n", err);
-        exit(1);
-    }
-    err = cudaMemcpy(device_memory, weights_ptr, *file_size, cudaMemcpyHostToDevice);
-    if (err != cudaSuccess) {
-        printf("cudaMemcpy error %d\n", err);
-        exit(1);
-    }
+    cudaMalloc((void**)&device_memory, *file_size);
+    cudaMemcpy(device_memory, weights_ptr, *file_size, cudaMemcpyHostToDevice);
     memory_map_weights(weights, config, (half*)device_memory, shared_weights);
+    
 }
 
 void build_transformer(Transformer *t, char* checkpoint_path) {
@@ -305,7 +297,7 @@ void softmax(half* x, int size) {
     }
 }
 
-__device__ __host__
+__device__
 void device_softmax(half* x, int size) {
     // find max value (for numerical stability)
     half max_val = x[0];
@@ -326,6 +318,7 @@ void device_softmax(half* x, int size) {
     }
 }
 
+__global__
 void softmax(float* x, int size) {
     // find max value (for numerical stability)
     float max_val = x[0];
@@ -377,10 +370,6 @@ void matmulV2(cublasHandle_t* handle, half* xout, half* x, half* w, int n, int d
           	  x, K,
           	  &beta,
           	  xout, N);
-    if (ret != CUBLAS_STATUS_SUCCESS) {
-        printf("matmulV2 err %d\n", ret);
-        exit(1);
-    }
     
 }
 
@@ -635,7 +624,6 @@ half* forward(cublasHandle_t* handle, Transformer* transformer, int token, int p
     // for (int i = 0; i < dim; i++) {
     //     printf("i=%d, token: %f\n", i, __half2float(*(content_row_host + i)));
     // }
-    // exit(1);
     // memcpy(x, content_row, dim*sizeof(*x));
     cudaMemcpy(x, content_row, dim*sizeof(*x), cudaMemcpyDeviceToDevice);
     // printf("x: \n");
@@ -646,12 +634,10 @@ half* forward(cublasHandle_t* handle, Transformer* transformer, int token, int p
 
         // attention rmsnorm
         rmsnormV2<<<1,32>>>(s->xb, x, w->rms_att_weight + l*dim, dim);
-        // if ( l == 2) {
         // printf("rmsnormV2: \n");
         // print_vector<<<1,1>>>(s->xb, dim);
         // cudaDeviceSynchronize();
         // exit(1);
-        // }
 
         // key and value point to the kv cache
         int loff = l * p->seq_len * kv_dim; // kv cache layer offset for convenience
@@ -794,13 +780,6 @@ half* forward(cublasHandle_t* handle, Transformer* transformer, int token, int p
         // }
         // residual_connection<<<1, 1>>>(x, s->xb, dim);
         residual_connectionV2<<<dim/32, 32>>>(x, s->xb, dim);
-        // if ( l == 2) {
-        // printf("residual_connectionV2: \n");
-        // print_vector<<<1,1>>>(s->xb, dim);
-        // cudaDeviceSynchronize();
-        // exit(1);
-        // }
-
     }
 
     // final rmsnorm
@@ -1034,7 +1013,7 @@ void encode(Tokenizer* t, char *text, int8_t bos, int8_t eos, int *tokens, int *
 // sampling can be done in a few ways: greedy argmax, sampling, top-p sampling
 
 typedef struct {
-    float prob;
+    half prob;
     int index;
 } ProbIndex; // struct used when sorting probabilities during top-p sampling
 
@@ -1046,30 +1025,59 @@ typedef struct {
     unsigned long long rng_state;
 } Sampler;
 
-int sample_argmax(half* probabilities, int n) {
+
+// int sample_argmax(half* probabilities, int n) {
+//     // return the index that has the highest probability
+//     int max_i = 0;
+//     half max_p = probabilities[0];
+//     for (int i = 1; i < n; i++) {
+//         if (probabilities[i] > max_p) {
+//             max_i = i;
+//             max_p = probabilities[i];
+//         }
+//     }
+//     return max_i;
+// }
+
+__device__ __host__
+void sample_argmax(int* max_i, half* probabilities, int n) {
     // return the index that has the highest probability
-    int max_i = 0;
+    *max_i = 0;
     half max_p = probabilities[0];
     for (int i = 1; i < n; i++) {
         if (probabilities[i] > max_p) {
-            max_i = i;
+            *max_i = i;
             max_p = probabilities[i];
         }
     }
-    return max_i;
 }
 
-int sample_mult(half* probabilities, int n, half coin) {
+// int sample_mult(half* probabilities, int n, half coin) {
+//     // sample index from probabilities (they must sum to 1!)
+//     // coin is a random number in [0, 1), usually from random_f32()
+//     half cdf = 0.0f;
+//     for (int i = 0; i < n; i++) {
+//         cdf += probabilities[i];
+//         if (coin < cdf) {
+//             return i;
+//         }
+//     }
+//     return n - 1; // in case of rounding errors
+// }
+
+__device__
+void sample_mult(int* next, half* probabilities, int n, half coin) {
     // sample index from probabilities (they must sum to 1!)
     // coin is a random number in [0, 1), usually from random_f32()
     half cdf = 0.0f;
     for (int i = 0; i < n; i++) {
         cdf += probabilities[i];
         if (coin < cdf) {
-            return i;
+            *next = i;
+            return;
         }
     }
-    return n - 1; // in case of rounding errors
+    *next = n - 1; // in case of rounding errors
 }
 
 int compare(const void* a, const void* b) {
@@ -1080,7 +1088,64 @@ int compare(const void* a, const void* b) {
     return 0;
 }
 
-int sample_topp(half* probabilities, int n, half topp, ProbIndex* probindex, half coin) {
+// int sample_topp(half* probabilities, int n, half topp, ProbIndex* probindex, half coin) {
+//     // top-p sampling (or "nucleus sampling") samples from the smallest set of
+//     // tokens that exceed probability topp. This way we never sample tokens that
+//     // have very low probabilities and are less likely to go "off the rails".
+//     // coin is a random number in [0, 1), usually from random_f32()
+
+//     int n0 = 0;
+//     // quicksort indices in descending order of probabilities
+//     // values smaller than (1 - topp) / (n - 1) cannot be part of the result
+//     // so for efficiency we crop these out as candidates before sorting
+//     const half cutoff = ((half)1.0 - topp) / (half)(n - 1);
+//     for (int i = 0; i < n; i++) {
+//         if (probabilities[i] >= cutoff) {
+//             probindex[n0].index = i;
+//             probindex[n0].prob = probabilities[i];
+//             n0++;
+//         }
+//     }
+//     qsort(probindex, n0, sizeof(ProbIndex), compare);
+
+//     // truncate the list where cumulative probability exceeds topp
+//     half cumulative_prob = 0.0f;
+//     int last_idx = n0 - 1; // in case of rounding errors consider all elements
+//     for (int i = 0; i < n0; i++) {
+//         cumulative_prob += probindex[i].prob;
+//         if (cumulative_prob > topp) {
+//             last_idx = i;
+//             break; // we've exceeded topp by including last_idx
+//         }
+//     }
+
+//     // sample from the truncated list
+//     float r = coin * cumulative_prob;
+//     float cdf = 0.0f;
+//     for (int i = 0; i <= last_idx; i++) {
+//         cdf += probindex[i].prob;
+//         if (r < cdf) {
+//             return probindex[i].index;
+//         }
+//     }
+//     return probindex[last_idx].index; // in case of rounding errors
+// }
+
+__device__
+void g_bubble_sort(ProbIndex *x, int size) {
+    for (int i = 1; i < size; i++) {
+        for (int j = 0; j < size - i; j++) {
+            if (x[j].prob < x[j + 1].prob) {
+                ProbIndex tmp = x[j];
+                x[j] = x[j + 1];
+                x[j+1] = tmp;
+            }
+        }
+    }
+}
+
+__device__
+void sample_topp(int *next, half* probabilities, int n, half topp, ProbIndex* probindex, float coin) {
     // top-p sampling (or "nucleus sampling") samples from the smallest set of
     // tokens that exceed probability topp. This way we never sample tokens that
     // have very low probabilities and are less likely to go "off the rails".
@@ -1098,29 +1163,37 @@ int sample_topp(half* probabilities, int n, half topp, ProbIndex* probindex, hal
             n0++;
         }
     }
-    qsort(probindex, n0, sizeof(ProbIndex), compare);
+
+    // qsort(probindex, n0, sizeof(ProbIndex), compare);
+    g_bubble_sort(probindex, n0);
 
     // truncate the list where cumulative probability exceeds topp
-    half cumulative_prob = 0.0f;
+    float cumulative_prob = 0.0f;
     int last_idx = n0 - 1; // in case of rounding errors consider all elements
     for (int i = 0; i < n0; i++) {
-        cumulative_prob += probindex[i].prob;
-        if (cumulative_prob > topp) {
+        cumulative_prob += __half2float(probindex[i].prob);
+        if (cumulative_prob > __half2float(topp)) {
             last_idx = i;
             break; // we've exceeded topp by including last_idx
         }
     }
-
+    // for (int i = 0; i < n0; i++) {
+    //     printf("sample_topp probindex[%d]=%f\n", probindex[i].index, __half2float(probindex[i].prob));
+    // }
+    // printf("sample_topp probindex n0=%d, last_idx=%d\n", n0, last_idx);
     // sample from the truncated list
     float r = coin * cumulative_prob;
     float cdf = 0.0f;
     for (int i = 0; i <= last_idx; i++) {
-        cdf += probindex[i].prob;
+        cdf += __half2float(probindex[i].prob);
         if (r < cdf) {
-            return probindex[i].index;
+            *next = probindex[i].index;
+            // printf("sample_topp return i = %d, next=%d, r=%f, cdf=%f\n", i, *next, r, cdf);
+            return;
         }
     }
-    return probindex[last_idx].index; // in case of rounding errors
+    *next = probindex[last_idx].index; // in case of rounding errors
+    // printf("sample_topp end next=%d\n", next);
 }
 
 void build_sampler(Sampler* sampler, int vocab_size, float temperature, float topp, unsigned long long rng_seed) {
@@ -1129,13 +1202,22 @@ void build_sampler(Sampler* sampler, int vocab_size, float temperature, float to
     sampler->topp = topp;
     sampler->rng_state = rng_seed;
     // buffer only used with nucleus sampling; may not need but it's ~small
-    sampler->probindex = (ProbIndex*)malloc(sampler->vocab_size * sizeof(ProbIndex));
+    // sampler->probindex = (ProbIndex*)malloc(sampler->vocab_size * sizeof(ProbIndex));
+    void *device_probindex;
+    cudaError_t err;
+    err = cudaMalloc(&device_probindex, sampler->vocab_size * sizeof(ProbIndex));
+    if (err != cudaSuccess) {
+        printf("build_sampler error %d\n", err);
+        exit(-1);
+    }
+    sampler->probindex = (ProbIndex*)device_probindex;
 }
 
 void free_sampler(Sampler* sampler) {
-    free(sampler->probindex);
+    cudaFree(sampler->probindex);
 }
 
+__device__ __host__
 unsigned int random_u32(unsigned long long *state) {
     // xorshift rng: https://en.wikipedia.org/wiki/Xorshift#xorshift.2A
     *state ^= *state >> 12;
@@ -1143,37 +1225,48 @@ unsigned int random_u32(unsigned long long *state) {
     *state ^= *state >> 27;
     return (*state * 0x2545F4914F6CDD1Dull) >> 32;
 }
+
+__device__ __host__
 float random_f32(unsigned long long *state) { // random float32 in [0,1)
     return (random_u32(state) >> 8) / 16777216.0f;
 }
 
-int sample(Sampler* sampler, half* logits) {
+__global__ void device_temperature(half* logits, int size, half temperature) {
+    for (int i = 0; i < size; i++) {
+        logits[i] /= temperature;
+    }
+}
+
+__global__ 
+void sample(int* next, Sampler* sampler, int vocab_size, ProbIndex* probindex,
+                            float temperature, float topp, unsigned long long *rng_state, half* logits) {
+    
     // sample the token given the logits and some hyperparameters
-    int next;
-    if (sampler->temperature == 0.0f) {
+    if (temperature == 0.0f) {
         // greedy argmax sampling: take the token with the highest probability
-        next = sample_argmax(logits, sampler->vocab_size);
+        sample_argmax(next, logits, vocab_size);
     } else {
-        // apply the temperature to the logits
-        for (int q=0; q<sampler->vocab_size; q++) { 
-            logits[q] /= (half)sampler->temperature; 
-            // printf("q=%d %f\n", q, (float)logits[q]);
-            // printf("q=%d %p\n", q, logits);
-        }
+        // // apply the temperature to the logits
+        for (int q=0; q<vocab_size; q++) { logits[q] /= __float2half(temperature); }
+        
         // apply softmax to the logits to get the probabilities for next token
-        device_softmax(logits, sampler->vocab_size);
+        device_softmax(logits, vocab_size);
+        // printf("sample!\n");
         // flip a (float) coin (this is our source of entropy for sampling)
-        float coin = random_f32(&sampler->rng_state);
+        float coin = random_f32(rng_state);
         // we sample from this distribution to get the next token
-        if (sampler->topp <= 0 || sampler->topp >= 1) {
+        if (topp <= 0 || topp >= 1) {
             // simply sample from the predicted probability distribution
-            next = sample_mult(logits, sampler->vocab_size, coin);
+            sample_mult(next, logits, vocab_size, coin);
+            printf("sample_mult next=%d\n", next);
         } else {
             // top-p (nucleus) sampling, clamping the least likely tokens to zero
-            next = sample_topp(logits, sampler->vocab_size, sampler->topp, sampler->probindex, coin);
+            sample_topp(next, logits, vocab_size, topp, probindex, coin);
+            
         }
+        
     }
-    return next;
+    // return next;
 }
 
 // ----------------------------------------------------------------------------
@@ -1206,12 +1299,18 @@ void generate(Transformer *transformer, Tokenizer *tokenizer, Sampler *sampler, 
         exit(EXIT_FAILURE);
     }
 
+    unsigned long long *device_rng_state;
+    cudaMalloc(&device_rng_state, sizeof(unsigned long long));
+    cudaMemcpy(device_rng_state, &sampler->rng_state, sizeof(unsigned long long), cudaMemcpyHostToDevice);
+
     // start the main loop
     long start = 0;  // used to time our code, only initialized after first iteration
     int next;        // will store the next token in the sequence
+    void* dnext;
+    cudaMalloc(&dnext, sizeof(int));
     int token = prompt_tokens[0]; // kick off with the first token in the prompt
     int pos = 0;     // position in the sequence
-    half* host_logits = (half*)calloc(sampler->vocab_size, sizeof(half));
+    // half* host_logits = (half*)calloc(sampler->vocab_size, sizeof(half));
     cublasHandle_t handle;
     cublasCreate(&handle);
     while (pos < steps) {
@@ -1226,13 +1325,23 @@ void generate(Transformer *transformer, Tokenizer *tokenizer, Sampler *sampler, 
             next = prompt_tokens[pos + 1];
         } else {
             // otherwise sample the next token from the logits
-            cudaMemcpy((void*)host_logits, logits, (sampler->vocab_size) * sizeof(half), cudaMemcpyDeviceToHost);
+            // cudaMemcpy((void*)host_logits, logits, (sampler->vocab_size) * sizeof(half), cudaMemcpyDeviceToHost);
             // printf("logits=%p %p\n", logits, host_logits);
             // for (int i = 0; i < sampler->vocab_size; i++) {
             //     printf("%d=%f", i, __half2float(host_logits[i]));
             // }
             
-            next = sample(sampler, host_logits);
+    //             int vocab_size;
+    // ProbIndex* probindex; // buffer used in top-p sampling
+    // float temperature;
+    // float topp;
+            
+
+            sample<<<1,1>>>((int*)dnext, sampler, sampler->vocab_size, sampler->probindex,
+                            sampler->temperature, sampler->topp, device_rng_state, logits);
+            cudaDeviceSynchronize();
+            cudaMemcpy((void*)&next, dnext, sizeof(int), cudaMemcpyDeviceToHost);
+            // printf("next=%d\n", next);
         }
         pos++;
 
@@ -1253,12 +1362,10 @@ void generate(Transformer *transformer, Tokenizer *tokenizer, Sampler *sampler, 
     // report achieved tok/s (pos-1 because the timer starts after first iteration)
     if (pos > 1) {
         long end = time_in_ms();
-        fprintf(stderr, "total toks: %d\n", pos-1);
-        fprintf(stderr, "total seconds: %f\n", (double)(end-start)/1000);
         fprintf(stderr, "achieved tok/s: %f\n", (pos-1) / (double)(end-start)*1000);
     }
     cublasDestroy(handle);
-    free(host_logits);
+    // free(host_logits);
     free(prompt_tokens);
 }
 
@@ -1282,88 +1389,88 @@ void read_stdin(const char* guide, char* buffer, size_t bufsize) {
 void chat(Transformer *transformer, Tokenizer *tokenizer, Sampler *sampler,
           char *cli_user_prompt, char *cli_system_prompt, int steps) {
 
-    // buffers for reading the system prompt and user prompt from stdin
-    // you'll notice they are soomewhat haphazardly and unsafely set atm
-    char system_prompt[512];
-    char user_prompt[512];
-    char rendered_prompt[1152];
-    int num_prompt_tokens = 0;
-    int* prompt_tokens = (int*)malloc(1152 * sizeof(int));
-    int user_idx;
+    // // buffers for reading the system prompt and user prompt from stdin
+    // // you'll notice they are soomewhat haphazardly and unsafely set atm
+    // char system_prompt[512];
+    // char user_prompt[512];
+    // char rendered_prompt[1152];
+    // int num_prompt_tokens = 0;
+    // int* prompt_tokens = (int*)malloc(1152 * sizeof(int));
+    // int user_idx;
 
-    // start the main loop
-    int8_t user_turn = 1; // user starts
-    int next;        // will store the next token in the sequence
-    int token;       // stores the current token to feed into the transformer
-    int prev_token;
-    int pos = 0;     // position in the sequence
-    cublasHandle_t handle;
-    cublasCreate(&handle);
-    while (pos < steps) {
+    // // start the main loop
+    // int8_t user_turn = 1; // user starts
+    // int next;        // will store the next token in the sequence
+    // int token;       // stores the current token to feed into the transformer
+    // int prev_token;
+    // int pos = 0;     // position in the sequence
+    // cublasHandle_t handle;
+    // cublasCreate(&handle);
+    // while (pos < steps) {
 
-        // when it is the user's turn to contribute tokens to the dialog...
-        if (user_turn) {
-            // get the (optional) system prompt at position 0
-            if (pos == 0) {
-                // at position 0, the user can also contribute a system prompt
-                if (cli_system_prompt == NULL) {
-                    // system prompt was not passed in, attempt to get it from stdin
-                    read_stdin("Enter system prompt (optional): ", system_prompt, sizeof(system_prompt));
-                } else {
-                    // system prompt was passed in, use it
-                    strcpy(system_prompt, cli_system_prompt);
-                }
-            }
-            // get the user prompt
-            if (pos == 0 && cli_user_prompt != NULL) {
-                // user prompt for position 0 was passed in, use it
-                strcpy(user_prompt, cli_user_prompt);
-            } else {
-                // otherwise get user prompt from stdin
-                read_stdin("User: ", user_prompt, sizeof(user_prompt));
-            }
-            // render user/system prompts into the Llama 2 Chat schema
-            if (pos == 0 && system_prompt[0] != '\0') {
-                char system_template[] = "[INST] <<SYS>>\n%s\n<</SYS>>\n\n%s [/INST]";
-                sprintf(rendered_prompt, system_template, system_prompt, user_prompt);
-            } else {
-                char user_template[] = "[INST] %s [/INST]";
-                sprintf(rendered_prompt, user_template, user_prompt);
-            }
-            // encode the rendered prompt into tokens
-            encode(tokenizer, rendered_prompt, 1, 0, prompt_tokens, &num_prompt_tokens);
-            user_idx = 0; // reset the user index
-            user_turn = 0;
-            printf("Assistant: ");
-        }
+    //     // when it is the user's turn to contribute tokens to the dialog...
+    //     if (user_turn) {
+    //         // get the (optional) system prompt at position 0
+    //         if (pos == 0) {
+    //             // at position 0, the user can also contribute a system prompt
+    //             if (cli_system_prompt == NULL) {
+    //                 // system prompt was not passed in, attempt to get it from stdin
+    //                 read_stdin("Enter system prompt (optional): ", system_prompt, sizeof(system_prompt));
+    //             } else {
+    //                 // system prompt was passed in, use it
+    //                 strcpy(system_prompt, cli_system_prompt);
+    //             }
+    //         }
+    //         // get the user prompt
+    //         if (pos == 0 && cli_user_prompt != NULL) {
+    //             // user prompt for position 0 was passed in, use it
+    //             strcpy(user_prompt, cli_user_prompt);
+    //         } else {
+    //             // otherwise get user prompt from stdin
+    //             read_stdin("User: ", user_prompt, sizeof(user_prompt));
+    //         }
+    //         // render user/system prompts into the Llama 2 Chat schema
+    //         if (pos == 0 && system_prompt[0] != '\0') {
+    //             char system_template[] = "[INST] <<SYS>>\n%s\n<</SYS>>\n\n%s [/INST]";
+    //             sprintf(rendered_prompt, system_template, system_prompt, user_prompt);
+    //         } else {
+    //             char user_template[] = "[INST] %s [/INST]";
+    //             sprintf(rendered_prompt, user_template, user_prompt);
+    //         }
+    //         // encode the rendered prompt into tokens
+    //         encode(tokenizer, rendered_prompt, 1, 0, prompt_tokens, &num_prompt_tokens);
+    //         user_idx = 0; // reset the user index
+    //         user_turn = 0;
+    //         printf("Assistant: ");
+    //     }
 
-        // determine the token to pass into the transformer next
-        if (user_idx < num_prompt_tokens) {
-            // if we are still processing the input prompt, force the next prompt token
-            token = prompt_tokens[user_idx++];
-        } else {
-            // otherwise use the next token sampled from previous turn
-            token = next;
-        }
-        // EOS (=2) token ends the Assistant turn
-        if (token == 2) { user_turn = 1; }
+    //     // determine the token to pass into the transformer next
+    //     if (user_idx < num_prompt_tokens) {
+    //         // if we are still processing the input prompt, force the next prompt token
+    //         token = prompt_tokens[user_idx++];
+    //     } else {
+    //         // otherwise use the next token sampled from previous turn
+    //         token = next;
+    //     }
+    //     // EOS (=2) token ends the Assistant turn
+    //     if (token == 2) { user_turn = 1; }
 
-        // forward the transformer to get logits for the next token
-        half* logits = forward(&handle, transformer, token, pos);
-        next = sample(sampler, logits);
-        pos++;
+    //     // forward the transformer to get logits for the next token
+    //     half* logits = forward(&handle, transformer, token, pos);
+    //     sample<<<1,1>>>(&next, sampler, logits);
+    //     pos++;
 
-        if (user_idx >= num_prompt_tokens && next != 2) {
-            // the Assistant is responding, so print its output
-            char* piece = decode(tokenizer, token, next);
-            safe_printf(piece); // same as printf("%s", piece), but skips "unsafe" bytes
-            fflush(stdout);
-        }
-        if (next == 2) { printf("\n"); }
-    }
-    printf("\n");
-    cublasDestroy(handle);
-    free(prompt_tokens);
+    //     if (user_idx >= num_prompt_tokens && next != 2) {
+    //         // the Assistant is responding, so print its output
+    //         char* piece = decode(tokenizer, token, next);
+    //         safe_printf(piece); // same as printf("%s", piece), but skips "unsafe" bytes
+    //         fflush(stdout);
+    //     }
+    //     if (next == 2) { printf("\n"); }
+    // }
+    // printf("\n");
+    // cublasDestroy(handle);
+    // free(prompt_tokens);
 }
 
 
@@ -1435,7 +1542,9 @@ int main(int argc, char *argv[]) {
 
     // build the Sampler
     Sampler sampler;
+    // Sampler *device_sampler;
     build_sampler(&sampler, transformer.config.vocab_size, temperature, topp, rng_seed);
+    // cudaMemcpy(device_sampler, &sampler, sizeof(Sampler), cudaMemcpyHostToDevice);
 
     // run!
     if (strcmp(mode, "generate") == 0) {
