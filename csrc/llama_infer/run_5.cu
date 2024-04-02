@@ -740,6 +740,7 @@ half* forward(cublasHandle_t* handle, cudaGraph_t *graph, cudaGraphExec_t *graph
 
     cudaError_t err;
 
+    cudaGraphNode_t blockDeviceNode_1;
     if (!(*graphCreated)) {
         *graphCreated= true;
         cudaKernelNodeParams blockDeviceNodeParams = {0};
@@ -755,6 +756,24 @@ half* forward(cublasHandle_t* handle, cudaGraph_t *graph, cudaGraphExec_t *graph
 
         err = cudaGraphAddKernelNode(blockDeviceNode, *graph, NULL,
                                          0, &blockDeviceNodeParams);
+
+        if (err != cudaSuccess) {
+            printf("cudaGraphAddKernelNode with error: %s\n", cudaGetErrorString(err));
+        }
+
+        cudaKernelNodeParams blockDeviceNodeParams_1 = {0};
+
+        void *blockDeviceArgs_1[4] = {(void *)&x, (void *)(&(w->token_embedding_table)), (void *)&token, (void *)&dim};
+
+        blockDeviceNodeParams_1.gridDim = dim3(1, 1, 1);
+        blockDeviceNodeParams_1.blockDim = dim3(1, 1, 1);
+        blockDeviceNodeParams_1.sharedMemBytes = 0;
+        blockDeviceNodeParams_1.extra = NULL;
+        blockDeviceNodeParams_1.func = (void *)static_kernel;
+        blockDeviceNodeParams_1.kernelParams = (void **)blockDeviceArgs_1;
+
+        err = cudaGraphAddKernelNode(blockDeviceNode + 1, *graph, blockDeviceNode,
+                                         1, &blockDeviceNodeParams_1);
 
         if (err != cudaSuccess) {
             printf("cudaGraphAddKernelNode with error: %s\n", cudaGetErrorString(err));
@@ -777,6 +796,22 @@ half* forward(cublasHandle_t* handle, cudaGraph_t *graph, cudaGraphExec_t *graph
         blockDeviceNodeParams.kernelParams = (void **)blockDeviceArgs;
   
         err = cudaGraphExecKernelNodeSetParams(*graph_exec, *blockDeviceNode, &blockDeviceNodeParams);
+        if (err != cudaSuccess) {
+            printf("cudaGraphExecKernelNodeSetParams with error: %s\n", cudaGetErrorString(err));
+        }
+
+        cudaKernelNodeParams blockDeviceNodeParams_1 = {0};
+
+        void *blockDeviceArgs_1[4] = {(void *)&x, (void *)(&(w->token_embedding_table)), (void *)&token, (void *)&dim};
+
+        blockDeviceNodeParams_1.gridDim = dim3(1, 1, 1);
+        blockDeviceNodeParams_1.blockDim = dim3(1, 1, 1);
+        blockDeviceNodeParams_1.sharedMemBytes = 0;
+        blockDeviceNodeParams_1.extra = NULL;
+        blockDeviceNodeParams_1.func = (void *)static_kernel;
+        blockDeviceNodeParams_1.kernelParams = (void **)blockDeviceArgs_1;
+  
+        err = cudaGraphExecKernelNodeSetParams(*graph_exec, *(blockDeviceNode+1), &blockDeviceNodeParams_1);
         if (err != cudaSuccess) {
             printf("cudaGraphExecKernelNodeSetParams with error: %s\n", cudaGetErrorString(err));
         }
@@ -1441,14 +1476,14 @@ void generate(Transformer *transformer, Tokenizer *tokenizer, Sampler *sampler, 
     // cudaGraphInstantiate(&instance, graph, NULL, NULL, 0);
     // cudaGraphLaunch(instance, stream);
     // cudaStreamSynchronize(stream);
-    cudaGraphNode_t blockDeviceNode;
+    cudaGraphNode_t blockDeviceNode[2];
     // create_global_graph(&graph_exec, &graph, &stream, &blockDeviceNode);
 
     while (pos < steps) {
         printf("pos=%d\n", pos);
         // forward the transformer to get logits for the next token
 
-        half* logits = forward(&handle, &graph, &graph_exec, &stream, &graphCreated, &blockDeviceNode, transformer, dtokens + pos, token, pos);
+        half* logits = forward(&handle, &graph, &graph_exec, &stream, &graphCreated, blockDeviceNode, transformer, dtokens + pos, token, pos);
         // half* logits = forward(transformer, token, pos);
         // advance the state machine
         if (pos < num_prompt_tokens - 1) {
