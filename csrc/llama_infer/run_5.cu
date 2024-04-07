@@ -9,6 +9,15 @@ python stat-csv.py run_5_rmsnorm.csv --kernels "rmsnormV2"
 kernel, mean(us), std, med, num
 rmsnormV2,  4.932,  0.179,  4.864,  325
 
+ncu -k matmulV3 --csv --log-file run_5_matmul.csv --cache-control=all --clock-control=base --metrics gpu__time_duration.sum ./run_5 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
+python stat-csv.py run_5_matmul.csv --kernels "matmulV3"
+kernel, mean(us), std, med, num
+matmulV3,  33.923,  0.331,  33.888,  2048
+
+ncu  --csv --log-file run_5_matmul.csv --cache-control=all --clock-control=base --metrics gpu__time_duration.sum ./run_5 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
+python stat-csv.py run_5_matmul.csv --kernels "matmulV3"
+
+
 ncu -k ropeV2 --csv --log-file run_5_ropeV2.csv --cache-control=all --clock-control=base --metrics gpu__time_duration.sum ./run_5 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
 python stat-csv.py run_5_ropeV2.csv --kernels "ropeV2"
 ['ropeV2']
@@ -29,6 +38,9 @@ swigluV2,  2.662,  0.110,  2.656,  1856
 
 ncu -k multihead_attentionV2 --csv --log-file run_5_multihead_attentionV2.csv --cache-control=all --clock-control=base --metrics gpu__time_duration.sum ./run_5 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
 python stat-csv.py run_5_multihead_attentionV2.csv --kernels "multihead_attentionV2"
+
+ncu --csv --log-file run_5.csv --cache-control=all --clock-control=base --metrics gpu__time_duration.sum ./run_5 stories15M_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
+
 
 nsys profile --stats=true ./run_5 llama2_7b_fp16.bin -t 0.8 -n 256 -i "One day, Lily met a Shoggoth"
 Inference for Llama-2 Transformer model in pure C 
@@ -382,6 +394,95 @@ void matmul(half* xout, half* x, half* w, int n, int d) {
     }
 }
 
+__global__
+void matmulV3(half* C, half* A, half* B, int K, int N) {
+    // W (d,n) @ x (n,) -> xout (d,)
+    // by far the most amount of time is spent inside this little function
+    int tidx = threadIdx.x;
+    int bidx = blockIdx.x;
+
+    int i = tidx + bidx * blockDim.x;
+    if (i < N ){
+    half val = 0.0f;
+    for (int j = 0; j < K; j++) {
+        val += B[i * K + j] * A[j];
+    }
+    C[i] = val;
+    }
+
+
+}
+
+// __global__
+// void matmulV3(half* C, half* A, half* B, int K, int N) {
+//     // W (d,n) @ x (n,) -> xout (d,)
+//     // by far the most amount of time is spent inside this little function
+//     int tidx = threadIdx.x;
+//     int bidx = blockIdx.x;
+//     extern __shared__ half smem_[];
+//     half* sA = smem_;
+//     half* sB = smem_ + K;
+//     half* sC = smem_ + K + K;
+
+//     // global memory -> shared memory
+//     uint4 dst_a = make_uint4(0, 0, 0, 0); 
+//     // 8 * gridDim.x
+
+//     int g2s_offset_a = (tidx + bidx * blockDim.x) * 8;
+//     for (int i = g2s_offset_a; i < K; i += gridDim.x*blockDim.x*8) {
+//         dst_a = *reinterpret_cast<const uint4*>(A + i);
+//         *reinterpret_cast<uint4*>(sA + i) = dst_a;
+//     }
+
+//     // if (tidx == 0 && bidx == 0) {
+//     //     for (int i = 0; i < N; i++){
+//     //         printf("index=%d, gA=%f sA=%f\n", i, __half2float(A[i]), __half2float(sA[i]));
+//     //     }
+//     // }
+
+    
+
+//     // if (threadIdx.x == 0) {
+//     //     printf("K=%d, N=%d\n", K, N);
+//     // }
+//     uint4 dst_b = make_uint4(0, 0, 0, 0); 
+//     int g2s_offset_b = (tidx + bidx * blockDim.x) * 8;
+//     for (int i = g2s_offset_b; i < K; i += gridDim.x*blockDim.x*8) {
+//         dst_b = *reinterpret_cast<const uint4*>(B + i + (tidx + bidx * blockDim.x)*K);
+//         *reinterpret_cast<uint4*>(sB + i) = dst_b;
+//     }
+
+//     // if (tidx == 0 && bidx == 0) {
+//     //     for (int i = 0; i < N; i++){
+//     //         printf("index=%d, gB=%f sB=%f\n", i, __half2float(B[i]), __half2float(sB[i]));
+//     //     }
+//     // }
+
+//     // gemm
+
+//     // for (int j = 0; j < N; j++) {
+//         for (int k = 0; k < K; k++) {
+//             sC[tidx + bidx * blockDim.x] += sA[k] * sB[k];
+//         }
+
+//         if (tidx == 0 && bidx == 0) {
+//         for (int i = 0; i < N; i++){
+//             printf("index=%d, gC=%f sC=%f\n", i, __half2float(C[i]), __half2float(sC[i]));
+//         }
+//     }
+
+//     // }
+//     // printf("index=%d, sC=%f  ", tidx + bidx * blockDim.x, __half2float(sC[tidx + bidx * blockDim.x]));
+
+//     // shared memory -> global memory
+//     uint4 dst_c = make_uint4(0, 0, 0, 0); 
+//     int s2g_offset_c = (tidx + bidx * blockDim.x) * 8;
+//     for (int i = s2g_offset_c; i < K; i += gridDim.x*blockDim.x*8) {
+//         dst_c = *reinterpret_cast<const uint4*>(sC + s2g_offset_c);
+//         *reinterpret_cast<uint4*>(C + s2g_offset_c) = dst_c;
+//     }
+// }
+
 void matmulV2(cublasHandle_t* handle, half* xout, half* x, half* w, int n, int d) {
     // W (d,n) @ x (n,) -> xout (d,)
     // by far the most amount of time is spent inside this little function
@@ -400,6 +501,8 @@ void matmulV2(cublasHandle_t* handle, half* xout, half* x, half* w, int n, int d
           	  xout, N);
     
 }
+
+
 
 __global__
 void rope(half* q, half* k, int dim, int kv_dim, int head_size, int pos) {
@@ -656,6 +759,14 @@ __global__ void static_kernel(half *x, half* token_embedding_table, int *token, 
     printf("static_kernel x=%f, token_embedding_table=%f, token=%d, dim=%d\n", __half2float(x[0]), __half2float(token_embedding_table[0]), *token, dim);
 }
 
+__global__ void static_kernel_0(half *x, half* token_embedding_table, int *token, int dim) {
+// __global__ void get_content_row() {
+    // for (int i = 0; i<dim; i++) {
+    //     x[i] = *(token_embedding_tableint + (*token) * dim + i);
+    // }
+    printf("static_kernel x=%f, token_embedding_table=%f, token=%d, dim=%d\n", __half2float(x[0]), __half2float(token_embedding_table[0]), *token, dim);
+}
+
 __global__ void clockBlock(clock_t clock_count) {
 printf("clockBlock clock_count=%d\n", clock_count);
 }
@@ -723,6 +834,23 @@ printf("clockBlock clock_count=%d\n", clock_count);
 // //   return graph_nodes;
 // }
 
+// void nodeSetParams(cudaGraphExec_t *graph_exec, cudaGraphNode_t *blockDeviceNode, void *blockDeviceArgs) {
+//         cudaKernelNodeParams blockDeviceNodeParams = {0};
+//         // void *blockDeviceArgs[4] = {(void *)&(s->xb), (void *)&x, (void *)&rms_att_weight_graph, (void *)&dim};
+
+//         blockDeviceNodeParams.gridDim = dim3(1);
+//         blockDeviceNodeParams.blockDim = dim3(32);
+//         blockDeviceNodeParams.sharedMemBytes = 0;
+//         blockDeviceNodeParams.extra = NULL;
+//         blockDeviceNodeParams.func = (void *)rmsnormV2;
+//         blockDeviceNodeParams.kernelParams = (void **)blockDeviceArgs;
+  
+//         err = cudaGraphExecKernelNodeSetParams(*graph_exec, *blockDeviceNode, &blockDeviceNodeParams);
+//         if (err != cudaSuccess) {
+//             printf("0 cudaGraphExecKernelNodeSetParams with error: %s\n", cudaGetErrorString(err));
+//         }
+// }
+
 half* forward(cublasHandle_t* handle, cudaGraph_t *graph, cudaGraphExec_t *graph_exec, cudaStream_t* stream, bool* graphCreated, cudaGraphNode_t *blockDeviceNode,
               Transformer* transformer, int *token, int htoken, int pos) {
 
@@ -739,44 +867,285 @@ half* forward(cublasHandle_t* handle, cudaGraph_t *graph, cudaGraphExec_t *graph
     int head_size = dim / p->n_heads;
 
     cudaError_t err;
+    get_content_row<<<1,1>>>(x, w->token_embedding_table, token, dim);
 
-    cudaGraphNode_t blockDeviceNode_1;
     if (!(*graphCreated)) {
         *graphCreated= true;
+
+        // rmsnormV2<<<1,32,0,*stream>>>(s->xb, x, w->rms_att_weight + l*dim, dim);
         cudaKernelNodeParams blockDeviceNodeParams = {0};
-
-        void *blockDeviceArgs[4] = {(void *)&x, (void *)(&(w->token_embedding_table)), (void *)&token, (void *)&dim};
-
-        blockDeviceNodeParams.gridDim = dim3(1, 1, 1);
-        blockDeviceNodeParams.blockDim = dim3(1, 1, 1);
+        void *blockDeviceArgs[4] = {(void *)&(s->xb), (void *)&x, (void *)&(w->rms_att_weight), (void *)&dim};
+        blockDeviceNodeParams.gridDim = dim3(1);
+        blockDeviceNodeParams.blockDim = dim3(32);
         blockDeviceNodeParams.sharedMemBytes = 0;
         blockDeviceNodeParams.extra = NULL;
-        blockDeviceNodeParams.func = (void *)get_content_row;
+        blockDeviceNodeParams.func = (void *)rmsnormV2;
         blockDeviceNodeParams.kernelParams = (void **)blockDeviceArgs;
-
         err = cudaGraphAddKernelNode(blockDeviceNode, *graph, NULL,
                                          0, &blockDeviceNodeParams);
-
         if (err != cudaSuccess) {
-            printf("cudaGraphAddKernelNode with error: %s\n", cudaGetErrorString(err));
+            printf("0 cudaGraphAddKernelNode with error: %s\n", cudaGetErrorString(err));
         }
 
+        // // matmulV3<<<dim/32,32>>>(s->q, s->xb, w->wq + l*dim*dim, dim, dim);
         cudaKernelNodeParams blockDeviceNodeParams_1 = {0};
-
-        void *blockDeviceArgs_1[4] = {(void *)&x, (void *)(&(w->token_embedding_table)), (void *)&token, (void *)&dim};
-
-        blockDeviceNodeParams_1.gridDim = dim3(1, 1, 1);
-        blockDeviceNodeParams_1.blockDim = dim3(1, 1, 1);
+        void *blockDeviceArgs_1[5] = {(void *)&(s->q), (void *)&(s->xb), (void *)&(w->wq), (void *)&dim, (void *)&dim};
+        blockDeviceNodeParams_1.gridDim = dim3(dim/32);
+        blockDeviceNodeParams_1.blockDim = dim3(32);
         blockDeviceNodeParams_1.sharedMemBytes = 0;
         blockDeviceNodeParams_1.extra = NULL;
-        blockDeviceNodeParams_1.func = (void *)static_kernel;
+        blockDeviceNodeParams_1.func = (void *)matmulV3;
         blockDeviceNodeParams_1.kernelParams = (void **)blockDeviceArgs_1;
-
-        err = cudaGraphAddKernelNode(blockDeviceNode + 1, *graph, blockDeviceNode,
-                                         1, &blockDeviceNodeParams_1);
-
+        err = cudaGraphAddKernelNode(blockDeviceNode + 1, *graph, NULL,
+                                         0, &blockDeviceNodeParams_1);
         if (err != cudaSuccess) {
-            printf("cudaGraphAddKernelNode with error: %s\n", cudaGetErrorString(err));
+            printf("1 cudaGraphAddKernelNode with error: %s\n", cudaGetErrorString(err));
+        }
+        err = cudaGraphAddDependencies(*graph, blockDeviceNode, blockDeviceNode + 1, 1);
+        if (err != cudaSuccess) {
+            printf("1 cudaGraphAddDependencies with error: %s\n", cudaGetErrorString(err));
+        }
+
+        // matmulV3<<<1,32>>>(s->k, s->xb, w->wk + l*dim*kv_dim, dim, kv_dim);
+        cudaKernelNodeParams blockDeviceNodeParams_2 = {0};
+        void *blockDeviceArgs_2[5] = {(void *)&(s->k), (void *)&(s->xb), (void *)&(w->wk), (void *)&dim, (void *)&kv_dim};
+        blockDeviceNodeParams_2.gridDim = dim3(kv_dim/32);
+        blockDeviceNodeParams_2.blockDim = dim3(32);
+        blockDeviceNodeParams_2.sharedMemBytes = 0;
+        blockDeviceNodeParams_2.extra = NULL;
+        blockDeviceNodeParams_2.func = (void *)matmulV3;
+        blockDeviceNodeParams_2.kernelParams = (void **)blockDeviceArgs_2;
+        err = cudaGraphAddKernelNode(blockDeviceNode + 2, *graph, NULL,
+                                         0, &blockDeviceNodeParams_2);
+        if (err != cudaSuccess) {
+            printf("1 cudaGraphAddKernelNode with error: %s\n", cudaGetErrorString(err));
+        }
+        err = cudaGraphAddDependencies(*graph, blockDeviceNode, blockDeviceNode + 2, 1);
+        if (err != cudaSuccess) {
+            printf("1 cudaGraphAddDependencies with error: %s\n", cudaGetErrorString(err));
+        }
+
+        // matmulV3<<<1,32>>>(s->v, s->xb, w->wv + l*dim*kv_dim, dim, kv_dim);
+        cudaKernelNodeParams blockDeviceNodeParams_3 = {0};
+        void *blockDeviceArgs_3[5] = {(void *)&(s->v), (void *)&(s->xb), (void *)&(w->wv), (void *)&dim, (void *)&kv_dim};
+        blockDeviceNodeParams_3.gridDim = dim3(kv_dim/32);
+        blockDeviceNodeParams_3.blockDim = dim3(32);
+        blockDeviceNodeParams_3.sharedMemBytes = 0;
+        blockDeviceNodeParams_3.extra = NULL;
+        blockDeviceNodeParams_3.func = (void *)matmulV3;
+        blockDeviceNodeParams_3.kernelParams = (void **)blockDeviceArgs_3;
+        err = cudaGraphAddKernelNode(blockDeviceNode + 3, *graph, NULL,
+                                         0, &blockDeviceNodeParams_3);
+        if (err != cudaSuccess) {
+            printf("1 cudaGraphAddKernelNode with error: %s\n", cudaGetErrorString(err));
+        }
+        err = cudaGraphAddDependencies(*graph, blockDeviceNode, blockDeviceNode + 3, 1);
+        if (err != cudaSuccess) {
+            printf("1 cudaGraphAddDependencies with error: %s\n", cudaGetErrorString(err));
+        }
+
+        // ropeV2<<<dim/64, 32,0,*stream>>>(s->q, s->k, dim, kv_dim, head_size, pos);
+        cudaKernelNodeParams blockDeviceNodeParams_4 = {0};
+        void *blockDeviceArgs_4[6] = {(void *)&(s->q), (void *)&(s->k), (void *)&(dim), (void *)&kv_dim, (void *)&head_size, (void *)&pos};
+        blockDeviceNodeParams_4.gridDim = dim3(dim/64);
+        blockDeviceNodeParams_4.blockDim = dim3(32);
+        blockDeviceNodeParams_4.sharedMemBytes = 0;
+        blockDeviceNodeParams_4.extra = NULL;
+        blockDeviceNodeParams_4.func = (void *)ropeV2;
+        blockDeviceNodeParams_4.kernelParams = (void **)blockDeviceArgs_4;
+        err = cudaGraphAddKernelNode(blockDeviceNode + 4, *graph, NULL,
+                                         0, &blockDeviceNodeParams_4);
+        if (err != cudaSuccess) {
+            printf("1 cudaGraphAddKernelNode with error: %s\n", cudaGetErrorString(err));
+        }
+        err = cudaGraphAddDependencies(*graph, blockDeviceNode+1, blockDeviceNode + 4, 1);
+        if (err != cudaSuccess) {
+            printf("1 cudaGraphAddDependencies with error: %s\n", cudaGetErrorString(err));
+        }
+        err = cudaGraphAddDependencies(*graph, blockDeviceNode+2, blockDeviceNode + 4, 1);
+        if (err != cudaSuccess) {
+            printf("1 cudaGraphAddDependencies with error: %s\n", cudaGetErrorString(err));
+        }
+        err = cudaGraphAddDependencies(*graph, blockDeviceNode+3, blockDeviceNode + 4, 1);
+        if (err != cudaSuccess) {
+            printf("1 cudaGraphAddDependencies with error: %s\n", cudaGetErrorString(err));
+        }
+
+        // multihead_attentionV2<<<head_size, 1,0,*stream>>>(s->att, s->q, s->key_cache, s->value_cache, s->xb,
+        //                         p->n_heads, head_size, p->seq_len, pos, loff, kv_dim, kv_mul);
+
+        cudaKernelNodeParams blockDeviceNodeParams_5 = {0};
+        void *blockDeviceArgs_5[12] = {(void *)&(s->att), (void *)&(s->q), (void *)&(s->key_cache), (void *)&(s->value_cache), 
+                                       (void *)&(s->xb), (void *)&(p->n_heads), (void *)&(head_size), (void *)&(p->seq_len),
+                                       (void *)&(pos), (void *)&(pos), (void *)&(kv_dim), (void *)&(kv_mul)};
+        blockDeviceNodeParams_5.gridDim = dim3(head_size);
+        blockDeviceNodeParams_5.blockDim = dim3(1);
+        blockDeviceNodeParams_5.sharedMemBytes = 0;
+        blockDeviceNodeParams_5.extra = NULL;
+        blockDeviceNodeParams_5.func = (void *)multihead_attentionV2;
+        blockDeviceNodeParams_5.kernelParams = (void **)blockDeviceArgs_5;
+        err = cudaGraphAddKernelNode(blockDeviceNode + 5, *graph, NULL,
+                                         0, &blockDeviceNodeParams_5);
+        if (err != cudaSuccess) {
+            printf("1 cudaGraphAddKernelNode with error: %s\n", cudaGetErrorString(err));
+        }
+        err = cudaGraphAddDependencies(*graph, blockDeviceNode+4, blockDeviceNode + 5, 1);
+        if (err != cudaSuccess) {
+            printf("1 cudaGraphAddDependencies with error: %s\n", cudaGetErrorString(err));
+        }
+
+        // matmulV3<<<dim/32,32>>>(s->xb2, s->xb, w->wo + l*dim*dim, dim, dim);
+        cudaKernelNodeParams blockDeviceNodeParams_6 = {0};
+        void *blockDeviceArgs_6[5] = {(void *)&(s->xb2), (void *)&(s->xb), (void *)&(w->wo), (void *)&dim, (void *)&dim};
+        blockDeviceNodeParams_6.gridDim = dim3(dim/32);
+        blockDeviceNodeParams_6.blockDim = dim3(32);
+        blockDeviceNodeParams_6.sharedMemBytes = 0;
+        blockDeviceNodeParams_6.extra = NULL;
+        blockDeviceNodeParams_6.func = (void *)matmulV3;
+        blockDeviceNodeParams_6.kernelParams = (void **)blockDeviceArgs_6;
+        err = cudaGraphAddKernelNode(blockDeviceNode + 6, *graph, NULL,
+                                         0, &blockDeviceNodeParams_6);
+        if (err != cudaSuccess) {
+            printf("1 cudaGraphAddKernelNode with error: %s\n", cudaGetErrorString(err));
+        }
+        err = cudaGraphAddDependencies(*graph, blockDeviceNode+5, blockDeviceNode + 6, 1);
+        if (err != cudaSuccess) {
+            printf("1 cudaGraphAddDependencies with error: %s\n", cudaGetErrorString(err));
+        }
+
+        // residual_connectionV2<<<dim/32,32,0,*stream>>>(x, s->xb2, dim);
+        cudaKernelNodeParams blockDeviceNodeParams_7 = {0};
+        void *blockDeviceArgs_7[3] = {(void *)&(x), (void *)&(s->xb2), (void *)&dim};
+        blockDeviceNodeParams_7.gridDim = dim3(dim/32);
+        blockDeviceNodeParams_7.blockDim = dim3(32);
+        blockDeviceNodeParams_7.sharedMemBytes = 0;
+        blockDeviceNodeParams_7.extra = NULL;
+        blockDeviceNodeParams_7.func = (void *)residual_connectionV2;
+        blockDeviceNodeParams_7.kernelParams = (void **)blockDeviceArgs_7;
+        err = cudaGraphAddKernelNode(blockDeviceNode + 7, *graph, NULL,
+                                         0, &blockDeviceNodeParams_7);
+        if (err != cudaSuccess) {
+            printf("1 cudaGraphAddKernelNode with error: %s\n", cudaGetErrorString(err));
+        }
+        err = cudaGraphAddDependencies(*graph, blockDeviceNode+6, blockDeviceNode + 7, 1);
+        if (err != cudaSuccess) {
+            printf("1 cudaGraphAddDependencies with error: %s\n", cudaGetErrorString(err));
+        }
+        // rmsnormV2<<<1,32,0,*stream>>>(s->xb, x, w->rms_ffn_weight + l*dim, dim);
+        cudaKernelNodeParams blockDeviceNodeParams_8 = {0};
+        void *blockDeviceArgs_8[4] = {(void *)&(s->xb), (void *)&x, (void *)&(w->rms_att_weight), (void *)&dim};
+        blockDeviceNodeParams_8.gridDim = dim3(1);
+        blockDeviceNodeParams_8.blockDim = dim3(32);
+        blockDeviceNodeParams_8.sharedMemBytes = 0;
+        blockDeviceNodeParams_8.extra = NULL;
+        blockDeviceNodeParams_8.func = (void *)rmsnormV2;
+        blockDeviceNodeParams_8.kernelParams = (void **)blockDeviceArgs_8;
+        err = cudaGraphAddKernelNode(blockDeviceNode+8, *graph, NULL,
+                                         0, &blockDeviceNodeParams_8);
+        if (err != cudaSuccess) {
+            printf("0 cudaGraphAddKernelNode with error: %s\n", cudaGetErrorString(err));
+        }
+        err = cudaGraphAddDependencies(*graph, blockDeviceNode+7, blockDeviceNode + 8, 1);
+        if (err != cudaSuccess) {
+            printf("1 cudaGraphAddDependencies with error: %s\n", cudaGetErrorString(err));
+        }
+
+        // matmulV3<<<hidden_dim/32,32>>>(s->hb, s->xb, w->w1 + l*dim*hidden_dim, dim, hidden_dim);
+        cudaKernelNodeParams blockDeviceNodeParams_9 = {0};
+        void *blockDeviceArgs_9[5] = {(void *)&(s->hb), (void *)&(s->xb), (void *)&(w->w1), (void *)&dim, (void *)&hidden_dim};
+        blockDeviceNodeParams_9.gridDim = dim3(hidden_dim/32);
+        blockDeviceNodeParams_9.blockDim = dim3(32);
+        blockDeviceNodeParams_9.sharedMemBytes = 0;
+        blockDeviceNodeParams_9.extra = NULL;
+        blockDeviceNodeParams_9.func = (void *)matmulV3;
+        blockDeviceNodeParams_9.kernelParams = (void **)blockDeviceArgs_9;
+        err = cudaGraphAddKernelNode(blockDeviceNode + 9, *graph, NULL,
+                                         0, &blockDeviceNodeParams_9);
+        if (err != cudaSuccess) {
+            printf("1 cudaGraphAddKernelNode with error: %s\n", cudaGetErrorString(err));
+        }
+        err = cudaGraphAddDependencies(*graph, blockDeviceNode+8, blockDeviceNode + 9, 1);
+        if (err != cudaSuccess) {
+            printf("1 cudaGraphAddDependencies with error: %s\n", cudaGetErrorString(err));
+        }
+
+        // matmulV3<<<hidden_dim/32,32>>>(s->hb2, s->xb, w->w3 + l*dim*hidden_dim, dim, hidden_dim);
+        cudaKernelNodeParams blockDeviceNodeParams_10 = {0};
+        void *blockDeviceArgs_10[5] = {(void *)&(s->hb2), (void *)&(s->xb), (void *)&(w->w3), (void *)&dim, (void *)&hidden_dim};
+        blockDeviceNodeParams_10.gridDim = dim3(hidden_dim/32);
+        blockDeviceNodeParams_10.blockDim = dim3(32);
+        blockDeviceNodeParams_10.sharedMemBytes = 0;
+        blockDeviceNodeParams_10.extra = NULL;
+        blockDeviceNodeParams_10.func = (void *)matmulV3;
+        blockDeviceNodeParams_10.kernelParams = (void **)blockDeviceArgs_10;
+        err = cudaGraphAddKernelNode(blockDeviceNode + 10, *graph, NULL,
+                                         0, &blockDeviceNodeParams_10);
+        if (err != cudaSuccess) {
+            printf("1 cudaGraphAddKernelNode with error: %s\n", cudaGetErrorString(err));
+        }
+        err = cudaGraphAddDependencies(*graph, blockDeviceNode+9, blockDeviceNode + 10, 1);
+        if (err != cudaSuccess) {
+            printf("1 cudaGraphAddDependencies with error: %s\n", cudaGetErrorString(err));
+        }
+
+        // // SwiGLU non-linearity
+        // swigluV2<<<hidden_dim/32,32,0,*stream>>>(s->hb, s->hb2, hidden_dim);
+        cudaKernelNodeParams blockDeviceNodeParams_11 = {0};
+        void *blockDeviceArgs_11[5] = {(void *)&(s->hb), (void *)&(s->hb2), (void *)&hidden_dim};
+        blockDeviceNodeParams_11.gridDim = dim3(hidden_dim/32);
+        blockDeviceNodeParams_11.blockDim = dim3(32);
+        blockDeviceNodeParams_11.sharedMemBytes = 0;
+        blockDeviceNodeParams_11.extra = NULL;
+        blockDeviceNodeParams_11.func = (void *)swigluV2;
+        blockDeviceNodeParams_11.kernelParams = (void **)blockDeviceArgs_11;
+        err = cudaGraphAddKernelNode(blockDeviceNode + 11, *graph, NULL,
+                                         0, &blockDeviceNodeParams_11);
+        if (err != cudaSuccess) {
+            printf("1 cudaGraphAddKernelNode with error: %s\n", cudaGetErrorString(err));
+        }
+        err = cudaGraphAddDependencies(*graph, blockDeviceNode+10, blockDeviceNode + 11, 1);
+        if (err != cudaSuccess) {
+            printf("1 cudaGraphAddDependencies with error: %s\n", cudaGetErrorString(err));
+        }
+
+        // final matmul to get the output of the ffn
+        // matmulV3<<<dim/32,32>>>(s->xb, s->hb, w->w2 + l*dim*hidden_dim, hidden_dim, dim);
+        cudaKernelNodeParams blockDeviceNodeParams_12 = {0};
+        void *blockDeviceArgs_12[5] = {(void *)&(s->xb), (void *)&(s->hb), (void *)&(w->w2), (void *)&hidden_dim, (void *)&dim};
+        blockDeviceNodeParams_12.gridDim = dim3(dim/32);
+        blockDeviceNodeParams_12.blockDim = dim3(32);
+        blockDeviceNodeParams_12.sharedMemBytes = 0;
+        blockDeviceNodeParams_12.extra = NULL;
+        blockDeviceNodeParams_12.func = (void *)matmulV3;
+        blockDeviceNodeParams_12.kernelParams = (void **)blockDeviceArgs_12;
+        err = cudaGraphAddKernelNode(blockDeviceNode + 12, *graph, NULL,
+                                         0, &blockDeviceNodeParams_12);
+        if (err != cudaSuccess) {
+            printf("1 cudaGraphAddKernelNode with error: %s\n", cudaGetErrorString(err));
+        }
+        err = cudaGraphAddDependencies(*graph, blockDeviceNode+11, blockDeviceNode + 12, 1);
+        if (err != cudaSuccess) {
+            printf("1 cudaGraphAddDependencies with error: %s\n", cudaGetErrorString(err));
+        }
+
+        // // residual connection
+        // residual_connectionV2<<<dim/32, 32,0,*stream>>>(x, s->xb, dim);
+        cudaKernelNodeParams blockDeviceNodeParams_13 = {0};
+        void *blockDeviceArgs_13[3] = {(void *)&(x), (void *)&(s->xb), (void *)&dim};
+        blockDeviceNodeParams_13.gridDim = dim3(dim/32);
+        blockDeviceNodeParams_13.blockDim = dim3(32);
+        blockDeviceNodeParams_13.sharedMemBytes = 0;
+        blockDeviceNodeParams_13.extra = NULL;
+        blockDeviceNodeParams_13.func = (void *)residual_connectionV2;
+        blockDeviceNodeParams_13.kernelParams = (void **)blockDeviceArgs_13;
+        err = cudaGraphAddKernelNode(blockDeviceNode + 13, *graph, NULL,
+                                         0, &blockDeviceNodeParams_13);
+        if (err != cudaSuccess) {
+            printf("1 cudaGraphAddKernelNode with error: %s\n", cudaGetErrorString(err));
+        }
+        err = cudaGraphAddDependencies(*graph, blockDeviceNode+12, blockDeviceNode + 13, 1);
+        if (err != cudaSuccess) {
+            printf("1 cudaGraphAddDependencies with error: %s\n", cudaGetErrorString(err));
         }
 
         err = cudaGraphInstantiate(graph_exec, *graph, nullptr, nullptr, 0);
@@ -784,80 +1153,151 @@ half* forward(cublasHandle_t* handle, cudaGraph_t *graph, cudaGraphExec_t *graph
             printf("cudaGraphInstantiate with error: %s\n", cudaGetErrorString(err));
         }
     } else {
-        cudaKernelNodeParams blockDeviceNodeParams = {0};
+        // cudaKernelNodeParams blockDeviceNodeParams = {0};
 
-        void *blockDeviceArgs[4] = {(void *)&x, (void *)(&(w->token_embedding_table)), (void *)&token, (void *)&dim};
+        // void *blockDeviceArgs[4] = {(void *)&(s->xb), (void *)&x, (void *)&(w->rms_att_weight), (void *)&dim};
 
-        blockDeviceNodeParams.gridDim = dim3(1, 1, 1);
-        blockDeviceNodeParams.blockDim = dim3(1, 1, 1);
-        blockDeviceNodeParams.sharedMemBytes = 0;
-        blockDeviceNodeParams.extra = NULL;
-        blockDeviceNodeParams.func = (void *)get_content_row;
-        blockDeviceNodeParams.kernelParams = (void **)blockDeviceArgs;
+        // blockDeviceNodeParams.gridDim = dim3(1);
+        // blockDeviceNodeParams.blockDim = dim3(32);
+        // blockDeviceNodeParams.sharedMemBytes = 0;
+        // blockDeviceNodeParams.extra = NULL;
+        // blockDeviceNodeParams.func = (void *)rmsnormV2;
+        // blockDeviceNodeParams.kernelParams = (void **)blockDeviceArgs;
   
-        err = cudaGraphExecKernelNodeSetParams(*graph_exec, *blockDeviceNode, &blockDeviceNodeParams);
-        if (err != cudaSuccess) {
-            printf("cudaGraphExecKernelNodeSetParams with error: %s\n", cudaGetErrorString(err));
-        }
+        // err = cudaGraphExecKernelNodeSetParams(*graph_exec, *blockDeviceNode, &blockDeviceNodeParams);
+        // if (err != cudaSuccess) {
+        //     printf("0 cudaGraphExecKernelNodeSetParams with error: %s\n", cudaGetErrorString(err));
+        // }
 
-        cudaKernelNodeParams blockDeviceNodeParams_1 = {0};
+        // cudaKernelNodeParams blockDeviceNodeParams_1 = {0};
 
-        void *blockDeviceArgs_1[4] = {(void *)&x, (void *)(&(w->token_embedding_table)), (void *)&token, (void *)&dim};
+        // void *blockDeviceArgs_1[4] = {(void *)&x, (void *)(&(w->token_embedding_table)), (void *)&token, (void *)&dim};
 
-        blockDeviceNodeParams_1.gridDim = dim3(1, 1, 1);
-        blockDeviceNodeParams_1.blockDim = dim3(1, 1, 1);
-        blockDeviceNodeParams_1.sharedMemBytes = 0;
-        blockDeviceNodeParams_1.extra = NULL;
-        blockDeviceNodeParams_1.func = (void *)static_kernel;
-        blockDeviceNodeParams_1.kernelParams = (void **)blockDeviceArgs_1;
+        // blockDeviceNodeParams_1.gridDim = dim3(1);
+        // blockDeviceNodeParams_1.blockDim = dim3(1);
+        // blockDeviceNodeParams_1.sharedMemBytes = 0;
+        // blockDeviceNodeParams_1.extra = NULL;
+        // blockDeviceNodeParams_1.func = (void *)static_kernel;
+        // blockDeviceNodeParams_1.kernelParams = (void **)blockDeviceArgs_1;
   
-        err = cudaGraphExecKernelNodeSetParams(*graph_exec, *(blockDeviceNode+1), &blockDeviceNodeParams_1);
-        if (err != cudaSuccess) {
-            printf("cudaGraphExecKernelNodeSetParams with error: %s\n", cudaGetErrorString(err));
-        }
+        // err = cudaGraphExecKernelNodeSetParams(*graph_exec, *(blockDeviceNode+1), &blockDeviceNodeParams_1);
+        // if (err != cudaSuccess) {
+        //     printf("1 cudaGraphExecKernelNodeSetParams with error: %s\n", cudaGetErrorString(err));
+        // }
     }
 
-    err = cudaGraphLaunch(*graph_exec, *stream);
-    if (err != cudaSuccess) {
-        printf("cudaGraphLaunch with error: %s\n", cudaGetErrorString(err));
-    }
-    err = cudaStreamSynchronize(*stream);
-    if (err != cudaSuccess) {
-        printf("cudaStreamSynchronize with error: %s\n", cudaGetErrorString(err));
-    }
+    // err = cudaGraphLaunch(*graph_exec, *stream);
+    // if (err != cudaSuccess) {
+    //     printf("cudaGraphLaunch with error: %s\n", cudaGetErrorString(err));
+    // }
+    // err = cudaStreamSynchronize(*stream);
+    // if (err != cudaSuccess) {
+    //     printf("cudaStreamSynchronize with error: %s\n", cudaGetErrorString(err));
+    // }
         
     // forward all the layers
     #pragma unroll
     for(unsigned long long l = 0; l < p->n_layers; l++) {
         // attention rmsnorm
         // rmsnormV2<<<1,32,0,*stream>>>(s->xb, x, w->rms_att_weight + l*dim, dim);
+        cudaKernelNodeParams blockDeviceNodeParams = {0};
+        half *rms_att_weight_graph = w->rms_att_weight + l*dim;
+        void *blockDeviceArgs[4] = {(void *)&(s->xb), (void *)&x, (void *)&rms_att_weight_graph, (void *)&dim};
+        blockDeviceNodeParams.gridDim = dim3(dim/32);
+        blockDeviceNodeParams.blockDim = dim3(32);
+        blockDeviceNodeParams.sharedMemBytes = 0;
+        blockDeviceNodeParams.extra = NULL;
+        blockDeviceNodeParams.func = (void *)rmsnormV2;
+        blockDeviceNodeParams.kernelParams = (void **)blockDeviceArgs;
+        err = cudaGraphExecKernelNodeSetParams(*graph_exec, *blockDeviceNode, &blockDeviceNodeParams);
+        if (err != cudaSuccess) {
+            printf("0 cudaGraphExecKernelNodeSetParams with error: %s\n", cudaGetErrorString(err));
+        }
 
-        // cudaStreamBeginCapture(*stream, cudaStreamCaptureModeGlobal);
-        rmsnormV2<<<1,32,0,*stream>>>(s->xb, x, w->rms_att_weight + l*dim, dim);
 
-        // printf("rmsnormV2: \n");
-        // print_vector<<<1,1>>>(s->xb, dim);
-        // cudaDeviceSynchronize();
-        // exit(1);
-        // cudaStreamSynchronize(*stream);
         // key and value point to the kv cache
         int loff = l * p->seq_len * kv_dim; // kv cache layer offset for convenience
         s->k = s->key_cache + loff + pos * kv_dim;
         s->v = s->value_cache + loff + pos * kv_dim;
 
         // qkv matmuls for this position
-
-        matmulV2(handle, s->q, s->xb, w->wq + l*dim*dim, dim, dim);
-        // printf("matmulV2: \n");
+        // matmulV2(handle, s->q, s->xb, w->wq + l*dim*dim, dim, dim);
+        // int smem_size = (2*dim + dim) * sizeof(half);
+        // matmulV3<<<dim/32,32>>>(s->q, s->xb, w->wq + l*dim*dim, dim, dim);
+        // printf("s->q: \n");
         // print_vector<<<1,1>>>(s->q, dim);
         // cudaDeviceSynchronize();
         // exit(1);
 
-        matmulV2(handle, s->k, s->xb, w->wk + l*dim*kv_dim, dim, kv_dim);
-        matmulV2(handle, s->v, s->xb, w->wv + l*dim*kv_dim, dim, kv_dim);
+        cudaKernelNodeParams blockDeviceNodeParams_1 = {0};
+        half *wq_graph_1 = w->wq + l*dim*dim;
+        void *blockDeviceArgs_1[5] = {(void *)&(s->q), (void *)&(s->xb), (void *)&(wq_graph_1), (void *)&dim, (void *)&dim};
+        blockDeviceNodeParams_1.gridDim = dim3(dim/32);
+        blockDeviceNodeParams_1.blockDim = dim3(32);
+        blockDeviceNodeParams_1.sharedMemBytes = 0;
+        blockDeviceNodeParams_1.extra = NULL;
+        blockDeviceNodeParams_1.func = (void *)matmulV3;
+        blockDeviceNodeParams_1.kernelParams = (void **)blockDeviceArgs_1;
+        err = cudaGraphExecKernelNodeSetParams(*graph_exec, *(blockDeviceNode+1), &blockDeviceNodeParams_1);
+        if (err != cudaSuccess) {
+            printf("0 cudaGraphExecKernelNodeSetParams with error: %s\n", cudaGetErrorString(err));
+        }
+
+
+
+
+        // matmulV2(handle, s->k, s->xb, w->wk + l*dim*kv_dim, dim, kv_dim);
+        // matmulV3<<<kv_dim/32,32>>>(s->k, s->xb, w->wk + l*dim*kv_dim, dim, kv_dim);
+        
+        half *wk_graph_2 = w->wk + l*dim*kv_dim;
+        cudaKernelNodeParams blockDeviceNodeParams_2 = {0};
+        void *blockDeviceArgs_2[5] = {(void *)&(s->k), (void *)&(s->xb), (void *)&(wk_graph_2), (void *)&dim, (void *)&kv_dim};
+        blockDeviceNodeParams_2.gridDim = dim3(kv_dim/32);
+        blockDeviceNodeParams_2.blockDim = dim3(32);
+        blockDeviceNodeParams_2.sharedMemBytes = 0;
+        blockDeviceNodeParams_2.extra = NULL;
+        blockDeviceNodeParams_2.func = (void *)matmulV3;
+        blockDeviceNodeParams_2.kernelParams = (void **)blockDeviceArgs_2;
+        err = cudaGraphExecKernelNodeSetParams(*graph_exec, *(blockDeviceNode+2), &blockDeviceNodeParams_2);
+        if (err != cudaSuccess) {
+            printf("0 cudaGraphExecKernelNodeSetParams with error: %s\n", cudaGetErrorString(err));
+        }
+
+
+
+        // matmulV2(handle, s->v, s->xb, w->wv + l*dim*kv_dim, dim, kv_dim);
+        // matmulV3<<<dim/32,32>>>(s->v, s->xb, w->wv + l*dim*kv_dim, dim, kv_dim);
+        half *wv_graph_3 = w->wv + l*dim*kv_dim;
+        cudaKernelNodeParams blockDeviceNodeParams_3 = {0};
+        void *blockDeviceArgs_3[5] = {(void *)&(s->v), (void *)&(s->xb), (void *)&(wv_graph_3), (void *)&dim, (void *)&kv_dim};
+        blockDeviceNodeParams_3.gridDim = dim3(kv_dim/32);
+        blockDeviceNodeParams_3.blockDim = dim3(32);
+        blockDeviceNodeParams_3.sharedMemBytes = 0;
+        blockDeviceNodeParams_3.extra = NULL;
+        blockDeviceNodeParams_3.func = (void *)matmulV3;
+        blockDeviceNodeParams_3.kernelParams = (void **)blockDeviceArgs_3;
+        err = cudaGraphExecKernelNodeSetParams(*graph_exec, *(blockDeviceNode+3), &blockDeviceNodeParams_3);
+        if (err != cudaSuccess) {
+            printf("0 cudaGraphExecKernelNodeSetParams with error: %s\n", cudaGetErrorString(err));
+        }
+
+
 
         // RoPE relative positional encoding: complex-valued rotate q and k in each head
-        ropeV2<<<dim/64, 32,0,*stream>>>(s->q, s->k, dim, kv_dim, head_size, pos);
+        // ropeV2<<<dim/64, 32,0,*stream>>>(s->q, s->k, dim, kv_dim, head_size, pos);
+        cudaKernelNodeParams blockDeviceNodeParams_4 = {0};
+        void *blockDeviceArgs_4[6] = {(void *)&(s->q), (void *)&(s->k), (void *)&dim, (void *)&kv_dim, (void *)&head_size, (void *)&pos};
+        blockDeviceNodeParams_4.gridDim = dim3(dim/64);
+        blockDeviceNodeParams_4.blockDim = dim3(32);
+        blockDeviceNodeParams_4.sharedMemBytes = 0;
+        blockDeviceNodeParams_4.extra = NULL;
+        blockDeviceNodeParams_4.func = (void *)ropeV2;
+        blockDeviceNodeParams_4.kernelParams = (void **)blockDeviceArgs_4;
+        err = cudaGraphExecKernelNodeSetParams(*graph_exec, *(blockDeviceNode+4), &blockDeviceNodeParams_4);
+        if (err != cudaSuccess) {
+            printf("0 cudaGraphExecKernelNodeSetParams with error: %s\n", cudaGetErrorString(err));
+        }
+
         // printf("ropeV2 q: \n");
         // print_vector<<<1,1>>>(s->q, dim);
         // cudaDeviceSynchronize();
@@ -866,60 +1306,167 @@ half* forward(cublasHandle_t* handle, cudaGraph_t *graph, cudaGraphExec_t *graph
         // cudaDeviceSynchronize();
         // exit(1);
 
-        multihead_attentionV2<<<head_size, 1,0,*stream>>>(s->att, s->q, s->key_cache, s->value_cache, s->xb,
-                         p->n_heads, head_size, p->seq_len, pos, loff, kv_dim, kv_mul);
+        // multihead_attentionV2<<<head_size, 1,0,*stream>>>(s->att, s->q, s->key_cache, s->value_cache, s->xb,
+        //                  p->n_heads, head_size, p->seq_len, pos, loff, kv_dim, kv_mul);
+
+        cudaKernelNodeParams blockDeviceNodeParams_5 = {0};
+        void *blockDeviceArgs_5[12] = {(void *)&(s->att), (void *)&(s->q), (void *)&(s->key_cache), (void *)&(s->value_cache), 
+                                       (void *)&(s->xb), (void *)&(p->n_heads), (void *)&(head_size), (void *)&(p->seq_len),
+                                       (void *)&(pos), (void *)&(loff), (void *)&(kv_dim), (void *)&(kv_mul)};
+        blockDeviceNodeParams_5.gridDim = dim3(head_size);
+        blockDeviceNodeParams_5.blockDim = dim3(1);
+        blockDeviceNodeParams_5.sharedMemBytes = 0;
+        blockDeviceNodeParams_5.extra = NULL;
+        blockDeviceNodeParams_5.func = (void *)multihead_attentionV2;
+        blockDeviceNodeParams_5.kernelParams = (void **)blockDeviceArgs_5;
+        err = cudaGraphExecKernelNodeSetParams(*graph_exec, *(blockDeviceNode+5), &blockDeviceNodeParams_5);
+        if (err != cudaSuccess) {
+            printf("0 cudaGraphExecKernelNodeSetParams with error: %s\n", cudaGetErrorString(err));
+        }
+
+
+
         // final matmul to get the output of the attention
-        matmulV2(handle, s->xb2, s->xb, w->wo + l*dim*dim, dim, dim);
+        // matmulV2(handle, s->xb2, s->xb, w->wo + l*dim*dim, dim, dim);
+        // matmulV3<<<dim/32,32>>>(s->xb2, s->xb, w->wo + l*dim*dim, dim, dim);
+        cudaKernelNodeParams blockDeviceNodeParams_6 = {0};
+        half *wo_graph_6 = w->wo + l*dim*dim;
+        void *blockDeviceArgs_6[5] = {(void *)&(s->xb2), (void *)&(s->xb), (void *)&(wo_graph_6), (void *)&dim, (void *)&dim};
+        blockDeviceNodeParams_6.gridDim = dim3(dim/32);
+        blockDeviceNodeParams_6.blockDim = dim3(32);
+        blockDeviceNodeParams_6.sharedMemBytes = 0;
+        blockDeviceNodeParams_6.extra = NULL;
+        blockDeviceNodeParams_6.func = (void *)matmulV3;
+        blockDeviceNodeParams_6.kernelParams = (void **)blockDeviceArgs_6;
+        err = cudaGraphExecKernelNodeSetParams(*graph_exec, *(blockDeviceNode+6), &blockDeviceNodeParams_6);
+        if (err != cudaSuccess) {
+            printf("0 cudaGraphExecKernelNodeSetParams with error: %s\n", cudaGetErrorString(err));
+        }
+
+
 
         // residual connection back into x
         // for (int i = 0; i < dim; i++) {
         //     x[i] += s->xb2[i];
         // }
         // residual_connection<<<1,1>>>(x, s->xb2, dim);
-        residual_connectionV2<<<dim/32,32,0,*stream>>>(x, s->xb2, dim);
+        // residual_connectionV2<<<dim/32,32,0,*stream>>>(x, s->xb2, dim);
+        cudaKernelNodeParams blockDeviceNodeParams_7 = {0};
+        void *blockDeviceArgs_7[3] = {(void *)&(x), (void *)&(s->xb2), (void *)&dim};
+        blockDeviceNodeParams_7.gridDim = dim3(dim/32);
+        blockDeviceNodeParams_7.blockDim = dim3(32);
+        blockDeviceNodeParams_7.sharedMemBytes = 0;
+        blockDeviceNodeParams_7.extra = NULL;
+        blockDeviceNodeParams_7.func = (void *)residual_connectionV2;
+        blockDeviceNodeParams_7.kernelParams = (void **)blockDeviceArgs_7;
+        err = cudaGraphExecKernelNodeSetParams(*graph_exec, *(blockDeviceNode+7), &blockDeviceNodeParams_7);
+        if (err != cudaSuccess) {
+            printf("0 cudaGraphExecKernelNodeSetParams with error: %s\n", cudaGetErrorString(err));
+        }
+
         // ffn rmsnorm
-        rmsnormV2<<<1,32,0,*stream>>>(s->xb, x, w->rms_ffn_weight + l*dim, dim);
+        // rmsnormV2<<<1,32,0,*stream>>>(s->xb, x, w->rms_ffn_weight + l*dim, dim);
+        half *rms_ffn_weight_graph_8 = w->rms_ffn_weight + l*dim;
+        cudaKernelNodeParams blockDeviceNodeParams_8 = {0};
+        void *blockDeviceArgs_8[4] = {(void *)&(s->xb), (void *)&x, (void *)&(rms_ffn_weight_graph_8), (void *)&dim};
+        blockDeviceNodeParams_8.gridDim = dim3(1);
+        blockDeviceNodeParams_8.blockDim = dim3(32);
+        blockDeviceNodeParams_8.sharedMemBytes = 0;
+        blockDeviceNodeParams_8.extra = NULL;
+        blockDeviceNodeParams_8.func = (void *)rmsnormV2;
+        blockDeviceNodeParams_8.kernelParams = (void **)blockDeviceArgs_8;
+        err = cudaGraphExecKernelNodeSetParams(*graph_exec, *(blockDeviceNode+8), &blockDeviceNodeParams_8);
+        if (err != cudaSuccess) {
+            printf("0 cudaGraphExecKernelNodeSetParams with error: %s\n", cudaGetErrorString(err));
+        }
 
         // Now for FFN in PyTorch we have: self.w2(F.silu(self.w1(x)) * self.w3(x))
         // first calculate self.w1(x) and self.w3(x)
-        matmulV2(handle, s->hb, s->xb, w->w1 + l*dim*hidden_dim, dim, hidden_dim);
-        matmulV2(handle, s->hb2, s->xb, w->w3 + l*dim*hidden_dim, dim, hidden_dim);
+        // matmulV3<<<hidden_dim/32,32>>>(s->hb, s->xb, w->w1 + l*dim*hidden_dim, dim, hidden_dim);
+        half *wq_graph_9 = w->w1 + l*dim*hidden_dim;
+        cudaKernelNodeParams blockDeviceNodeParams_9 = {0};
+        void *blockDeviceArgs_9[5] = {(void *)&(s->hb), (void *)&(s->xb), (void *)&(wq_graph_9), (void *)&dim, (void *)&hidden_dim};
+        blockDeviceNodeParams_9.gridDim = dim3(hidden_dim/32);
+        blockDeviceNodeParams_9.blockDim = dim3(32);
+        blockDeviceNodeParams_9.sharedMemBytes = 0;
+        blockDeviceNodeParams_9.extra = NULL;
+        blockDeviceNodeParams_9.func = (void *)matmulV3;
+        blockDeviceNodeParams_9.kernelParams = (void **)blockDeviceArgs_9;
+        err = cudaGraphExecKernelNodeSetParams(*graph_exec, *(blockDeviceNode+9), &blockDeviceNodeParams_9);
+        if (err != cudaSuccess) {
+            printf("0 cudaGraphExecKernelNodeSetParams with error: %s\n", cudaGetErrorString(err));
+        }
+
+        // matmulV3<<<hidden_dim/32,32>>>(s->hb2, s->xb, w->w3 + l*dim*hidden_dim, dim, hidden_dim);
+        cudaKernelNodeParams blockDeviceNodeParams_10 = {0};
+        half *w3_graph_10 = w->w3 + l*dim*hidden_dim;
+        void *blockDeviceArgs_10[5] = {(void *)&(s->hb2), (void *)&(s->xb), (void *)&(w3_graph_10), (void *)&dim, (void *)&hidden_dim};
+        blockDeviceNodeParams_10.gridDim = dim3(hidden_dim/32);
+        blockDeviceNodeParams_10.blockDim = dim3(32);
+        blockDeviceNodeParams_10.sharedMemBytes = 0;
+        blockDeviceNodeParams_10.extra = NULL;
+        blockDeviceNodeParams_10.func = (void *)matmulV3;
+        blockDeviceNodeParams_10.kernelParams = (void **)blockDeviceArgs_10;
+        err = cudaGraphExecKernelNodeSetParams(*graph_exec, *(blockDeviceNode+10), &blockDeviceNodeParams_10);
+        if (err != cudaSuccess) {
+            printf("0 cudaGraphExecKernelNodeSetParams with error: %s\n", cudaGetErrorString(err));
+        }
 
         // SwiGLU non-linearity
-        swigluV2<<<hidden_dim/32,32,0,*stream>>>(s->hb, s->hb2, hidden_dim);
-
+        // swigluV2<<<hidden_dim/32,32,0,*stream>>>(s->hb, s->hb2, hidden_dim);
+        cudaKernelNodeParams blockDeviceNodeParams_11 = {0};
+        void *blockDeviceArgs_11[5] = {(void *)&(s->hb), (void *)&(s->hb2), (void *)&hidden_dim};
+        blockDeviceNodeParams_11.gridDim = dim3(hidden_dim/32);
+        blockDeviceNodeParams_11.blockDim = dim3(32);
+        blockDeviceNodeParams_11.sharedMemBytes = 0;
+        blockDeviceNodeParams_11.extra = NULL;
+        blockDeviceNodeParams_11.func = (void *)swigluV2;
+        blockDeviceNodeParams_11.kernelParams = (void **)blockDeviceArgs_11;
+        err = cudaGraphExecKernelNodeSetParams(*graph_exec, *(blockDeviceNode+11), &blockDeviceNodeParams_11);
+        if (err != cudaSuccess) {
+            printf("0 cudaGraphExecKernelNodeSetParams with error: %s\n", cudaGetErrorString(err));
+        }
 
         // final matmul to get the output of the ffn
-        matmulV2(handle, s->xb, s->hb, w->w2 + l*dim*hidden_dim, hidden_dim, dim);
+        // matmulV2(handle, s->xb, s->hb, w->w2 + l*dim*hidden_dim, hidden_dim, dim);
+        // matmulV3<<<dim/32,32>>>(s->xb, s->hb, w->w2 + l*dim*hidden_dim, hidden_dim, dim);
+        cudaKernelNodeParams blockDeviceNodeParams_12 = {0};
+        half *w2_graph_12 = w->w2 + l*dim*hidden_dim;
+        void *blockDeviceArgs_12[5] = {(void *)&(s->xb), (void *)&(s->hb), (void *)&(w2_graph_12), (void *)&hidden_dim, (void *)&dim};
+        blockDeviceNodeParams_12.gridDim = dim3(dim/32);
+        blockDeviceNodeParams_12.blockDim = dim3(32);
+        blockDeviceNodeParams_12.sharedMemBytes = 0;
+        blockDeviceNodeParams_12.extra = NULL;
+        blockDeviceNodeParams_12.func = (void *)matmulV3;
+        blockDeviceNodeParams_12.kernelParams = (void **)blockDeviceArgs_12;
+        err = cudaGraphExecKernelNodeSetParams(*graph_exec, *(blockDeviceNode+12), &blockDeviceNodeParams_12);
+        if (err != cudaSuccess) {
+            printf("0 cudaGraphExecKernelNodeSetParams with error: %s\n", cudaGetErrorString(err));
+        }
 
         // residual connection
-        residual_connectionV2<<<dim/32, 32,0,*stream>>>(x, s->xb, dim);
+        // residual_connectionV2<<<dim/32, 32,0,*stream>>>(x, s->xb, dim);
+        cudaKernelNodeParams blockDeviceNodeParams_13 = {0};
+        void *blockDeviceArgs_13[3] = {(void *)&(x), (void *)&(s->xb), (void *)&dim};
+        blockDeviceNodeParams_13.gridDim = dim3(dim/32);
+        blockDeviceNodeParams_13.blockDim = dim3(32);
+        blockDeviceNodeParams_13.sharedMemBytes = 0;
+        blockDeviceNodeParams_13.extra = NULL;
+        blockDeviceNodeParams_13.func = (void *)residual_connectionV2;
+        blockDeviceNodeParams_13.kernelParams = (void **)blockDeviceArgs_13;
+        err = cudaGraphExecKernelNodeSetParams(*graph_exec, *(blockDeviceNode+13), &blockDeviceNodeParams_13);
+        if (err != cudaSuccess) {
+            printf("0 cudaGraphExecKernelNodeSetParams with error: %s\n", cudaGetErrorString(err));
+        }
 
-        // cudaStreamEndCapture(*stream, graph);
-    
-        // if ((*instance) == NULL) {
-        //     printf("graphCreated: \n");
-        //     err = cudaGraphInstantiate(instance, *graph, NULL, NULL, 0);
-        //     if (err != cudaSuccess) {
-        //         printf("cudaGraphInstantiate with error - %s\n", cudaGetErrorString(err));
-        //     }
-        // } else {
-        //     cudaGraphExecUpdateResult updateResult_out;
-            
-        //     err = cudaGraphExecUpdate(*instance, *graph, NULL, &updateResult_out);
-        //     // cudaGetErrorString(err);
-        //     if (updateResult_out != cudaGraphExecUpdateSuccess) {
-        //         printf("cudaGraphExecUpdate with error - %s\n", cudaGetErrorString(err));
-        //         if ((*instance) != NULL) {
-        //             cudaGraphExecDestroy(*instance);
-        //         }
-        //         printf("graph update failed with error - %d\n",updateResult_out);
-        //         cudaGraphInstantiate(instance, *graph, NULL, NULL, 0);
-        //     }
-        // }
-
-    // cudaGraphLaunch(*instance, *stream);
-    // cudaStreamSynchronize(*stream);
+        err = cudaGraphLaunch(*graph_exec, *stream);
+        if (err != cudaSuccess) {
+            printf("cudaGraphLaunch with error: %s\n", cudaGetErrorString(err));
+        }
+        err = cudaStreamSynchronize(*stream);
+        if (err != cudaSuccess) {
+            printf("cudaStreamSynchronize with error: %s\n", cudaGetErrorString(err));
+        }
     }
 
     // final rmsnorm
@@ -930,7 +1477,9 @@ half* forward(cublasHandle_t* handle, cudaGraph_t *graph, cudaGraphExec_t *graph
     // exit(1);
 
     // classifier into logits
-    matmulV2(handle, s->logits, x, w->wcls, p->dim, p->vocab_size);
+    // matmulV2(handle, s->logits, x, w->wcls, p->dim, p->vocab_size);
+    matmulV3<<<p->vocab_size,32>>>(s->logits, x, w->wcls, p->dim, p->vocab_size);
+    
     // printf("logitsV2: \n");
     // print_vector<<<1,1>>>(s->logits, p->vocab_size);
     // cudaDeviceSynchronize();
@@ -1476,7 +2025,7 @@ void generate(Transformer *transformer, Tokenizer *tokenizer, Sampler *sampler, 
     // cudaGraphInstantiate(&instance, graph, NULL, NULL, 0);
     // cudaGraphLaunch(instance, stream);
     // cudaStreamSynchronize(stream);
-    cudaGraphNode_t blockDeviceNode[2];
+    cudaGraphNode_t blockDeviceNode[16];
     // create_global_graph(&graph_exec, &graph, &stream, &blockDeviceNode);
 
     while (pos < steps) {
